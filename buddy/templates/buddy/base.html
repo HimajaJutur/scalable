@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}TicketBuddy{% endblock %}</title>
+
+    <style>
+        body { margin: 0; font-family: Arial; background:#eef3ff; }
+
+        
+        .navbar {
+            background: #0058ff;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            position: relative;
+            z-index: 999;
+        }
+        
+        
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        
+        .nav-title {
+            font-size: 26px;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+        }
+        
+       
+        .nav-center {
+            display: flex;
+            gap: 28px;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            font-size: 17px;
+            font-weight: 500;
+        }
+        
+        .nav-link:hover {
+            opacity: 0.85;
+        }
+        
+        
+        .dropdown {
+            position: relative;
+        }
+        .dropbtn {
+            background: white;
+            color: #0058ff;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: white;
+            min-width: 160px;
+            right: 0;
+            top: 46px;
+            border-radius: 6px;
+            box-shadow: 0px 6px 14px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+        .dropdown-content a {
+            display: block;
+            padding: 12px;
+            text-decoration: none;
+            color: #0058ff;
+            font-size: 15px;
+        }
+        .dropdown-content a:hover {
+            background: #e7f0ff;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <!-- LEFT: Logo -->
+    <div class="nav-left">
+        <a href="/" class="nav-title">TicketBuddy</a>
+
+        <a href="/destinations" class="nav-link">All Destinations</a>
+        <a href="/contact" class="nav-link">Contact</a>
+        <a href="/schedules" class="nav-link">Schedules</a>
+    </div>
+
+    <!-- RIGHT: User Dropdown -->
+    <div class="dropdown">
+        <button class="dropbtn">{{ request.session.username }}</button>
+        <div class="dropdown-content">
+            <a href="/profile">👤 Profile</a>
+            <a href="/history">📄 My Bookings</a>
+            <a href="/alerts">🔔 Alerts</a>
+            <a href="/logout">🚪 Logout</a>
+        </div>
+    </div>
+
+</div>
+
+
+
+{% if messages %}
+    <div style="
+        width:70%; 
+        margin:20px auto;
+        padding:12px;
+        background:#d7ffe0;
+        border-left:6px solid #00a83e;
+        color:#006622;
+        font-size:16px;
+        border-radius:6px;
+        ">
+        {% for message in messages %}
+            {{ message }}
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- PAGE CONTENT -->
+{% block content %}
+{% endblock %}
+
+</body>
+</html>
+
+
