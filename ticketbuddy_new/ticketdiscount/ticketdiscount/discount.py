@@ -1,0 +1,19 @@
+from decimal import Decimal, ROUND_HALF_UP
+
+def _d(x):
+    return Decimal(str(x))
+
+def apply_bulk_discount(total_fare, seats_count, threshold=3, percent=10):
+    """
+    Apply 10% discount if seats > threshold.
+    Returns: (new_total, discount_amount, applied)
+    """
+    seats_count = int(seats_count)
+    total = _d(total_fare)
+
+    if seats_count > threshold:
+        discount = (total * _d(percent) / _d(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        new_total = (total - discount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return float(new_total), float(discount), True
+
+    return float(total), 0.0, False
