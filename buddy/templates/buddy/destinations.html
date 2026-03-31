@@ -14,59 +14,55 @@
     justify-content: space-between;
     align-items: center;
 }
-.ride-info h3 {
-    margin: 0 0 8px 0;
-    color: #1a1a2e;
-    font-size: 20px;
-}
-.ride-info p {
-    margin: 4px 0;
-    color: #555;
-    font-size: 15px;
-}
-.ride-info .driver {
-    font-size: 14px;
-    color: #888;
-    margin-top: 6px;
-}
+.ride-info h3 { margin: 0 0 8px 0; color: #1a1a2e; font-size: 20px; }
+.ride-info p { margin: 4px 0; color: #555; font-size: 15px; }
+.ride-info .driver { font-size: 14px; color: #888; margin-top: 6px; }
 .seats-badge {
-    background: #fff8e1;
-    color: #1a1a2e;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-top: 8px;
-    display: inline-block;
+    background: #fff8e1; color: #1a1a2e;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 13px; font-weight: 600;
+    margin-top: 8px; display: inline-block;
 }
-.ride-right {
-    text-align: right;
+.ride-right { text-align: right; }
+.fare-big { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 10px; }
+.book-btn {
+    display: inline-block; padding: 10px 22px;
+    background: #f0c040; border-radius: 8px;
+    text-decoration: none; font-weight: 700;
+    color: #1a1a2e; font-size: 15px;
 }
-.fare-big {
-    font-size: 24px;
-    font-weight: 800;
+.book-btn:hover { background: #e0b030; box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+
+/* Map styles */
+#map-section {
+    width: 70%;
+    margin: 20px auto 10px auto;
+}
+#map-section h4 {
     color: #1a1a2e;
     margin-bottom: 10px;
+    font-size: 17px;
 }
-.book-btn {
-    display: inline-block;
-    padding: 10px 22px;
-    background: #f0c040;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 700;
-    color: #1a1a2e;
-    font-size: 15px;
-}
-.book-btn:hover {
-    background: #e0b030;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+#ireland-map {
+    height: 420px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 0;
 }
 </style>
 
 <h2 style="text-align:center; margin-top:30px; color:#1a1a2e;">🚗 All Carpool Routes</h2>
 <p style="text-align:center; color:#666; margin-bottom:20px;">Browse all available rides across Ireland</p>
 
+<!-- MAP SECTION -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<div id="map-section">
+    <h4>🗺️ Route Map</h4>
+    <div id="ireland-map"></div>
+</div>
+
+<!-- ROUTE CARDS -->
 {% if schedules %}
     {% for r in schedules %}
         <div class="route-card">
@@ -80,14 +76,62 @@
             <div class="ride-right">
                 <div class="fare-big">€{{ r.fare }}</div>
                 <a href="/book-ticket?from={{ r.source }}&to={{ r.destination }}&route={{ r.route_id }}&time={{ r.departure_time }}&arrival={{ r.arrival_time }}&fare={{ r.fare }}&car_type={{ r.car_type }}&driver_name={{ r.driver_name }}&total_seats={{ r.total_seats }}"
-                   class="book-btn">
-                    Book Ride →
-                </a>
+                   class="book-btn">Book Ride →</a>
             </div>
         </div>
     {% endfor %}
 {% else %}
     <p style="text-align:center; color:gray; margin-top:40px;">No routes available at the moment.</p>
 {% endif %}
+
+<!-- Leaflet JS + Map init -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const cityCoords = {{ city_coords_json|safe }};
+  const schedules  = [
+    {% for r in schedules %}
+      { source: "{{ r.source }}", destination: "{{ r.destination }}", fare: "{{ r.fare }}" },
+    {% endfor %}
+  ];
+
+  const map = L.map('ireland-map').setView([53.1, -8.1], 7);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  // City markers
+  Object.entries(cityCoords).forEach(([name, coord]) => {
+    L.circleMarker([coord.lat, coord.lng], {
+      radius: 9,
+      color: '#1a1a2e',
+      fillColor: '#f0c040',
+      fillOpacity: 1,
+      weight: 2
+    }).addTo(map).bindPopup(`<b>${name}</b>`);
+
+    L.tooltip({ permanent: true, direction: 'right', offset: [10, 0], className: 'city-label' })
+      .setContent(name)
+      .setLatLng([coord.lat, coord.lng])
+      .addTo(map);
+  });
+
+  // Route lines
+  schedules.forEach(s => {
+    const from = cityCoords[s.source];
+    const to   = cityCoords[s.destination];
+    if (from && to) {
+      L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
+        color: '#f0c040',
+        weight: 4,
+        opacity: 0.85,
+        dashArray: '8, 5'
+      }).addTo(map).bindPopup(
+        `<b>${s.source} → ${s.destination}</b><br>Fare: €${s.fare}`
+      );
+    }
+  });
+</script>
 
 {% endblock %}

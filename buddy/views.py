@@ -7,14 +7,11 @@ from .cognito_auth import (
 )
 import json
 import urllib.request
-from .fares import FARES
-from .schedules import SCHEDULES
 from buddy.utils.pdf_generator import generate_ticket_pdf, upload_ticket_pdf, get_presigned_url
 from datetime import datetime
 from decimal import Decimal
 import os
 import boto3
-from ticketdiscount.discount import apply_bulk_discount
 
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -26,19 +23,36 @@ seats_table = dynamo.Table("TicketBuddy_Seats")
 
 SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts"
 
-TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
+TAX_API_URL  = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
+FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator"
 
 
 def get_lambda_client():
     return boto3.client("lambda", region_name="us-east-1")
 
 
+# ── Fare helper ───────────────────────────────────────────────────────────────
+def fetch_fare(source, destination):
+    """Call the RideReserve fare calculator API and return fare_raw."""
+    try:
+        payload = json.dumps({"from": source, "to": destination}).encode()
+        req = urllib.request.Request(
+            FARE_API_URL,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            return round(float(data.get("fare_raw", 0)), 2)
+    except Exception as e:
+        print(f"Fare API error ({source}→{destination}): {e}")
+        return None
+
+
 # ── Tax helper ────────────────────────────────────────────────────────────────
 def fetch_tax(price, country_code="IE"):
-    """
-    Calls the tax calculator API and returns the full response dict.
-    Returns a safe fallback (0 tax) if the call fails.
-    """
+    """Call the tax calculator API. Returns a safe fallback if the call fails."""
     try:
         payload = json.dumps({"price": round(float(price), 2), "country_code": country_code}).encode()
         req = urllib.request.Request(
@@ -81,16 +95,12 @@ def register_view(request):
         username = request.POST["username"]
         email = request.POST["email"]
         password = request.POST["password"]
-
         res = cognito_signup(username, email, password)
-
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("register")
-
         request.session["pending_username"] = username
         return redirect("confirm")
-
     return render(request, "buddy/register.html")
 
 
@@ -98,16 +108,12 @@ def confirm_view(request):
     if request.method == "POST":
         username = request.session.get("pending_username")
         code = request.POST["code"]
-
         res = cognito_confirm(username, code)
-
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("confirm")
-
         messages.success(request, "Account confirmed! Login now.")
         return redirect("login")
-
     return render(request, "buddy/confirm.html")
 
 
@@ -115,19 +121,15 @@ def login_view(request):
     if request.method == "POST":
         username = request.POST["username"]
         password = request.POST["password"]
-
         res = cognito_login(username, password)
-
         if "error" in res:
             messages.error(request, res["error"])
             return render(request, "buddy/login.html")
-
         tokens = res["AuthenticationResult"]
         request.session["id_token"] = tokens["IdToken"]
         request.session["access_token"] = tokens["AccessToken"]
         request.session["username"] = username
         return redirect("index")
-
     return render(request, "buddy/login.html")
 
 
@@ -139,16 +141,13 @@ def logout_view(request):
 def forgot_password_view(request):
     if request.method == "POST":
         username = request.POST["username"]
-
         res = cognito_forgot_password(username)
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("forgot-password")
-
         request.session["reset_username"] = username
         messages.success(request, "OTP sent to your email.")
         return redirect("reset-password")
-
     return render(request, "buddy/forgot_password.html")
 
 
@@ -157,16 +156,12 @@ def reset_password_view(request):
         username = request.session.get("reset_username")
         code = request.POST["code"]
         new_password = request.POST["password"]
-
         res = cognito_confirm_new_password(username, code, new_password)
-
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("reset-password")
-
         messages.success(request, "Password reset successful! You can now login.")
         return redirect("login")
-
     return render(request, "buddy/reset_password.html")
 
 
@@ -444,11 +439,9 @@ def payment_success(request):
         "ticket_type": pending_out.get("ticket_type"),
         "seats": outbound_seats,
         "fare": final_per_seat_fare,
-        # ── Tax fields saved to DynamoDB ──────────────────────────────────────
         "tax_rate":    outbound_tax.get("tax_rate", 0),
         "tax_amount":  round(outbound_tax.get("tax_amount", 0.0), 2),
         "final_price": round(outbound_tax.get("final_price", final_per_seat_fare * seat_count), 2),
-        # ─────────────────────────────────────────────────────────────────────
         "route": outbound_route,
         "departure_time": pending_out.get("departure_time"),
         "arrival_time": pending_out.get("arrival_time"),
@@ -474,14 +467,11 @@ def payment_success(request):
         return redirect("book-ticket")
 
     outbound_item = result["item"]
-    # Ensure tax fields are present on the item passed to PDF generator
     outbound_item["tax_rate"]    = book_payload_out["tax_rate"]
     outbound_item["tax_amount"]  = book_payload_out["tax_amount"]
     outbound_item["final_price"] = book_payload_out["final_price"]
-
     outbound_id = outbound_item["booking_id"]
 
-    # ── Persist tax fields to DynamoDB ───────────────────────────────────────
     try:
         tickets_table.update_item(
             Key={"booking_id": outbound_id},
@@ -499,7 +489,6 @@ def payment_success(request):
         pdf_buffer = generate_ticket_pdf(outbound_item)
         filename = f"tickets/{outbound_id}.pdf"
         pdf_key = upload_ticket_pdf(pdf_buffer, filename)
-
         tickets_table.update_item(
             Key={"booking_id": outbound_id},
             UpdateExpression="SET pdf_url = :p",
@@ -553,7 +542,6 @@ def payment_success(request):
                 messages.error(request, "Failed to lock return seats.")
                 return redirect("history")
 
-            # ── Call Tax API for return ───────────────────────────────────────
             try:
                 return_fare_raw = float(pending_ret.get("fare", 0)) * len(return_seats)
             except Exception:
@@ -570,11 +558,9 @@ def payment_success(request):
                 "ticket_type": "Return",
                 "seats": return_seats,
                 "fare": pending_ret.get("fare"),
-                # ── Tax fields ────────────────────────────────────────────────
                 "tax_rate":    return_tax.get("tax_rate", 0),
                 "tax_amount":  round(return_tax.get("tax_amount", 0.0), 2),
                 "final_price": round(return_tax.get("final_price", return_fare_raw), 2),
-                # ─────────────────────────────────────────────────────────────
                 "route": return_route,
                 "departure_time": pending_ret.get("departure_time"),
                 "arrival_time": pending_ret.get("arrival_time"),
@@ -598,12 +584,10 @@ def payment_success(request):
                 return_item = result_ret["item"]
                 return_id = return_item["booking_id"]
 
-                # Ensure tax fields on item for PDF
                 return_item["tax_rate"]    = book_payload_ret["tax_rate"]
                 return_item["tax_amount"]  = book_payload_ret["tax_amount"]
                 return_item["final_price"] = book_payload_ret["final_price"]
 
-                # Persist tax fields for return booking
                 try:
                     tickets_table.update_item(
                         Key={"booking_id": return_id},
@@ -621,7 +605,6 @@ def payment_success(request):
                     pdf_buffer_ret = generate_ticket_pdf(return_item)
                     filename_ret = f"tickets/{return_id}.pdf"
                     pdf_key_ret = upload_ticket_pdf(pdf_buffer_ret, filename_ret)
-
                     tickets_table.update_item(
                         Key={"booking_id": return_id},
                         UpdateExpression="SET pdf_url = :p",
@@ -658,47 +641,24 @@ def profile_view(request):
 
 def cancel_ticket(request, booking_id):
     lambda_client = get_lambda_client()
-
     response = lambda_client.invoke(
         FunctionName="TicketBuddy_CancelTicket",
         InvocationType="RequestResponse",
         Payload=json.dumps({"booking_id": booking_id})
     )
     result = json.loads(response["Payload"].read())
-
     if result.get("status") != "success":
         messages.error(request, "Failed to cancel ticket.")
         return redirect("history")
-
     messages.success(request, "Ticket cancelled successfully.")
     return redirect("history")
 
 
 def schedules_page(request):
-    import urllib.request as urlreq
     lambda_client = get_lambda_client()
     schedules = []
     date = request.GET.get("date", "")
     return_date = request.GET.get("return_date", "")
-
-    FARE_API = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator"
-
-    def fetch_fare(source, destination):
-        """Call the RideReserve fare calculator API and return fare_raw."""
-        try:
-            payload = json.dumps({"from": source, "to": destination}).encode()
-            req = urlreq.Request(
-                FARE_API,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST"
-            )
-            with urlreq.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read())
-                return round(float(data.get("fare_raw", 0)), 2)
-        except Exception as e:
-            print(f"Fare API error ({source}→{destination}): {e}")
-            return None
 
     if request.method == "POST":
         source      = request.POST.get("from")
@@ -706,18 +666,15 @@ def schedules_page(request):
         date        = request.POST.get("date")
         return_date = request.POST.get("return_date", "")
 
-        payload = {"from": source, "to": destination}
-
         response = lambda_client.invoke(
             FunctionName="TicketBuddy_GetSchedules",
             InvocationType="RequestResponse",
-            Payload=json.dumps(payload)
+            Payload=json.dumps({"from": source, "to": destination})
         )
         result = json.loads(response["Payload"].read())
         schedules = json.loads(result.get("body", "[]"))
 
-        # ── Override fare on every schedule with live API fare ────────────────
-        # Cache per route pair so we don't call the API once per schedule slot
+        # Override fare on every schedule with live API fare
         fare_cache = {}
         for s in schedules:
             src  = s.get("source", "")
@@ -727,8 +684,7 @@ def schedules_page(request):
                 fare_cache[key] = fetch_fare(src, dest)
             live_fare = fare_cache[key]
             if live_fare is not None:
-                s["fare"] = live_fare   # replace whatever DynamoDB had
-        # ─────────────────────────────────────────────────────────────────────
+                s["fare"] = live_fare
 
     return render(request, "buddy/schedules.html", {
         "schedules":   schedules,
@@ -740,7 +696,6 @@ def schedules_page(request):
 def select_seat_page(request):
     lambda_client = get_lambda_client()
     route_id = request.GET.get("route")
-
     response = lambda_client.invoke(
         FunctionName="TicketBuddy_GetSeats",
         InvocationType="RequestResponse",
@@ -749,7 +704,6 @@ def select_seat_page(request):
     result = json.loads(response["Payload"].read())
     seats = result.get("seats", [])
     seats = [s for s in seats if s.get("seat_no") not in ["A1", "Seat 1"]]
-
     return render(request, "buddy/select_seat.html", {
         "route_id": route_id,
         "seats": seats
@@ -767,7 +721,30 @@ def destinations_page(request):
     result = json.loads(response["Payload"].read())
     schedules = json.loads(result.get("body", "[]"))
 
-    return render(request, "buddy/destinations.html", {"schedules": schedules})
+    fare_cache = {}
+    for s in schedules:
+        src  = s.get("source", "")
+        dest = s.get("destination", "")
+        key  = (src, dest)
+        if key not in fare_cache:
+            fare_cache[key] = fetch_fare(src, dest)
+        live_fare = fare_cache[key]
+        if live_fare is not None:
+            s["fare"] = live_fare
+
+    city_coords = {
+        "Dublin":    {"lat": 53.3498, "lng": -6.2603},
+        "Cork":      {"lat": 51.8985, "lng": -8.4756},
+        "Galway":    {"lat": 53.2707, "lng": -9.0568},
+        "Limerick":  {"lat": 52.6638, "lng": -8.6267},
+        "Waterford": {"lat": 52.2593, "lng": -7.1101},
+        "Belfast":   {"lat": 54.5973, "lng": -5.9301},
+    }
+
+    return render(request, "buddy/destinations.html", {
+        "schedules": schedules,
+        "city_coords_json": json.dumps(city_coords),
+    })
 
 
 def contact_page(request):
@@ -844,6 +821,7 @@ def return_seat_page(request):
 
 def fare_calculator_api(request):
     import math
+    from django.http import JsonResponse
 
     CITY_COORDS = {
         "Dublin":    {"lat": 53.3498, "lng": -6.2603},
@@ -855,11 +833,8 @@ def fare_calculator_api(request):
     }
 
     RATE_PER_KM = 0.10
-
     source      = request.GET.get("from", "").strip().title()
     destination = request.GET.get("to", "").strip().title()
-
-    from django.http import JsonResponse
 
     if not source or not destination:
         return JsonResponse({"error": "Missing 'from' or 'to' parameter"}, status=400)
