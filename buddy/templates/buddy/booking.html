@@ -1,33 +1,23 @@
 {% extends "buddy/base.html" %}
-{% block title %}Book Ticket{% endblock %}
+{% block title %}Book a Ride – RideReserve{% endblock %}
 {% block content %}
-<body style="background:#f2f7f2;">
 
-{% if messages %}
-  <div style="background:#d1ffd1; color:#006600; padding:10px; width:60%; margin:20px auto; border-radius:6px; text-align:center;">
-    {% for message in messages %}{{ message }}{% endfor %}
-  </div>
-{% endif %}
+<div style="background:white; width:80%; margin:40px auto; padding:30px; border-radius:14px; box-shadow:0 4px 18px rgba(0,0,0,0.12);">
+  <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;">🚗 Plan Your Carpool Ride</h2>
 
-<div class="card" style="background:white; width:80%; margin:40px auto; padding:30px; border-radius:14px; box-shadow:0 4px 18px rgba(0,0,0,0.12);">
-  <h2 style="text-align:center; color:#0f8c2f; margin-bottom:25px;">Plan Your Journey</h2>
-
-  <!-- 🟢 NORMAL FORM SUBMISSION (POST) -->
   <form method="POST">
     {% csrf_token %}
-
-    <input type="hidden" name="route" value="{{ prefill.route }}">
-    <input type="hidden" id="hidden_fare" name="fare" value="{{ prefill.fare }}">
-    <input type="hidden" id="selected_seats" name="selected_seats" value="">
+    <input type="hidden" name="route"          value="{{ prefill.route }}">
+    <input type="hidden" id="hidden_fare"      name="fare" value="{{ prefill.fare }}">
+    <input type="hidden" id="selected_seats"   name="selected_seats" value="">
     <input type="hidden" name="departure_time" value="{{ prefill.departure_time }}">
-    <input type="hidden" name="arrival_time" value="{{ prefill.arrival_time }}">
-    <input type="hidden" name="return_date" id="return_date_hidden">
+    <input type="hidden" name="arrival_time"   value="{{ prefill.arrival_time }}">
+    <input type="hidden" name="return_date"    id="return_date_hidden">
+    <input type="hidden" name="total_seats"    value="{{ prefill.total_seats }}">
 
     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:20px;">
-      
-      <!-- FROM -->
       <select name="from" required style="padding:12px; border-radius:6px;">
-        <option value="">{{ prefill.from|default:"Travel From" }}</option>
+        <option value="">{{ prefill.from|default:"Ride From" }}</option>
         <option {% if prefill.from == "Dublin" %}selected{% endif %}>Dublin</option>
         <option {% if prefill.from == "Cork" %}selected{% endif %}>Cork</option>
         <option {% if prefill.from == "Galway" %}selected{% endif %}>Galway</option>
@@ -36,9 +26,8 @@
         <option {% if prefill.from == "Belfast" %}selected{% endif %}>Belfast</option>
       </select>
 
-      <!-- TO -->
       <select name="to" required style="padding:12px; border-radius:6px;">
-        <option value="">{{ prefill.to|default:"Travel To" }}</option>
+        <option value="">{{ prefill.to|default:"Ride To" }}</option>
         <option {% if prefill.to == "Dublin" %}selected{% endif %}>Dublin</option>
         <option {% if prefill.to == "Cork" %}selected{% endif %}>Cork</option>
         <option {% if prefill.to == "Galway" %}selected{% endif %}>Galway</option>
@@ -47,133 +36,252 @@
         <option {% if prefill.to == "Belfast" %}selected{% endif %}>Belfast</option>
       </select>
 
-      <!-- TICKET TYPE -->
-      <select name="ticket_type" onchange="toggleReturn()" required style="padding:12px; border-radius:6px;">
-        <option value="">Ticket Type</option>
+      <select name="ticket_type" id="ticket_type" onchange="toggleReturn(); updateUI();" required style="padding:12px; border-radius:6px;">
+        <option value="">Ride Type</option>
         <option>One Way</option>
         <option>Return</option>
       </select>
 
-      <input type="number" id="passengers" name="passengers" min="1" placeholder="Passengers" required style="padding:12px; border-radius:6px;">
-
+      <input type="number" id="passengers" name="passengers" min="1" placeholder="Passengers" required style="padding:12px; border-radius:6px;" readonly>
       <input type="date" name="departure_date" required style="padding:12px; border-radius:6px;">
-      
-      <!-- RETURN DATE -->
+
       <div id="return-date-box" style="display:none;">
-        <label>Return Date:</label>
-        <input type="date" id="return-date-input" style="padding:12px; border-radius:6px;">
+        <label style="font-size:14px; color:#555;">Return Date:</label>
+        <input type="date" id="return-date-input" style="padding:12px; border-radius:6px; width:100%;">
       </div>
     </div>
 
     {% if prefill.departure_time %}
-    <div style="margin-top:25px; background:#e8ffe8; padding:15px; border-radius:8px;">
-      <h3 style="color:#0f8c2f;">Selected Bus</h3>
-      <p><b>Route ID:</b> {{ prefill.route }}</p>
-      <p><b>Departure:</b> {{ prefill.departure_time }}</p>
-      <p><b>Arrival:</b> {{ prefill.arrival_time }}</p>
-      <p><b>Fare per Seat:</b> €{{ prefill.fare }}</p>
+    <div style="margin-top:25px; background:#fff8e1; padding:20px; border-radius:8px; border-left:4px solid #f0c040;">
+      <h3 style="color:#1a1a2e; margin:0 0 12px 0;">🚗 Your Carpool Ride</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <p style="margin:4px 0;"><b>🚙 Car:</b> {{ prefill.car_type }}</p>
+        <p style="margin:4px 0;"><b>👤 Driver:</b> {{ prefill.driver_name }}</p>
+        <p style="margin:4px 0;"><b>🕒 Departure:</b> {{ prefill.departure_time }}</p>
+        <p style="margin:4px 0;"><b>🕓 Arrival:</b> {{ prefill.arrival_time }}</p>
+        <p style="margin:4px 0;"><b>💶 Fare per Seat (One Way):</b> €{{ prefill.fare }}</p>
+        <p style="margin:4px 0;"><b>🪑 Passenger Seats:</b> {{ prefill.total_seats }}</p>
+      </div>
     </div>
     {% endif %}
 
-    <h3 style="margin-top:30px; text-align:center; color:#0f8c2f;">Select Your Seats</h3>
+    <h3 style="margin-top:30px; text-align:center; color:#1a1a2e;">Select Your Seat</h3>
+    <p style="text-align:center; color:#888; font-size:14px;">Click an available seat to select it</p>
 
     <style>
-      .seat{ width:36px;height:36px;margin:6px;display:inline-block;border-radius:6px;line-height:36px;color:white;cursor:pointer;text-align:center}
-      .available{background:#0f8c2f}
-      .selected{background:#0055aa}
-      .booked{background:#cc0000;cursor:not-allowed}
-      .seat-row{margin-bottom:8px}
+      .car-shell {
+          width: 340px;
+          margin: 20px auto;
+          background: #f0f0f0;
+          border-radius: 40px 40px 30px 30px;
+          padding: 20px 25px 30px 25px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+          position: relative;
+          border: 3px solid #ddd;
+      }
+      .car-windshield {
+          background: #c8e6ff;
+          border-radius: 20px 20px 5px 5px;
+          height: 30px;
+          margin-bottom: 15px;
+          opacity: 0.7;
+      }
+      .car-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          gap: 10px;
+      }
+      .car-aisle {
+          width: 30px;
+          flex-shrink: 0;
+          text-align: center;
+          color: #bbb;
+          font-size: 11px;
+      }
+      .seat-btn {
+          flex: 1;
+          padding: 12px 6px;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 13px;
+          text-align: center;
+          cursor: pointer;
+          border: 2px solid transparent;
+          transition: all 0.2s;
+          color: white;
+      }
+      .seat-driver    { background: #888; cursor: not-allowed; opacity: 0.6; }
+      .seat-available { background: #1a1a2e; color: white; }
+      .seat-available:hover { background: #2a2a4e; transform: scale(1.05); }
+      .seat-selected  { background: #f0c040; color: #1a1a2e; border-color: #d4a800; }
+      .seat-booked    { background: #cc0000; cursor: not-allowed; opacity: 0.7; }
+      .car-rear-window {
+          background: #c8e6ff;
+          border-radius: 5px 5px 15px 15px;
+          height: 20px;
+          margin-top: 15px;
+          opacity: 0.7;
+      }
+      .legend { display:flex; gap:20px; justify-content:center; margin-top:16px; font-size:13px; flex-wrap:wrap; }
+      .legend-item { display:flex; align-items:center; gap:6px; }
+      .legend-dot { width:16px; height:16px; border-radius:4px; }
     </style>
 
-    <div id="seat-area" style="width:80%; margin:18px auto; text-align:center;">
-      {% for r in "ABCDEF" %}
-        <div class="seat-row">
-          {% for n in "12345" %}
-            {% with seat=r|stringformat:"s"|add:n %}
-              <div id="{{ seat }}" class="seat {% if seat in booked %}booked{% else %}available{% endif %}" onclick="toggleSeat('{{ seat }}')">
-                {{ seat }}
-              </div>
-            {% endwith %}
-          {% endfor %}
-        </div>
-      {% endfor %}
+    <!-- Car Layout -->
+    <div class="car-shell">
+      <div class="car-windshield"></div>
+
+      <!-- Row 1: Driver + Front Passenger -->
+      <div class="car-row">
+        <div class="seat-btn seat-driver" title="Driver">🧑 Driver</div>
+        <div class="car-aisle"></div>
+        {% for seat in seats %}
+          {% if forloop.counter == 1 %}
+            <div id="seat-{{ seat.seat_id }}"
+                 class="seat-btn {% if seat.status == 'BOOKED' %}seat-booked{% else %}seat-available{% endif %}"
+                 onclick="toggleSeat('{{ seat.seat_id }}')">
+              Seat {{ seat.seat_id }}<br><small>Front</small>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div style="border-top:2px dashed #ccc; margin:8px 0;"></div>
+
+      <!-- Row 2: Rear seats (2, 3, 4) -->
+      <div class="car-row">
+        {% for seat in seats %}
+          {% if forloop.counter == 2 or forloop.counter == 3 or forloop.counter == 4 %}
+            <div id="seat-{{ seat.seat_id }}"
+                 class="seat-btn {% if seat.status == 'BOOKED' %}seat-booked{% else %}seat-available{% endif %}"
+                 onclick="toggleSeat('{{ seat.seat_id }}')">
+              Seat {{ seat.seat_id }}<br><small>Rear</small>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if seats|length >= 5 %}
+      <div style="border-top:2px dashed #ccc; margin:8px 0;"></div>
+      <div class="car-row">
+        {% for seat in seats %}
+          {% if forloop.counter == 5 or forloop.counter == 6 %}
+            <div id="seat-{{ seat.seat_id }}"
+                 class="seat-btn {% if seat.status == 'BOOKED' %}seat-booked{% else %}seat-available{% endif %}"
+                 onclick="toggleSeat('{{ seat.seat_id }}')">
+              Seat {{ seat.seat_id }}<br><small>Boot Row</small>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="car-rear-window"></div>
     </div>
 
-    <h3 style="text-align:center;">Total Fare: €<span id="total_fare">0.00</span></h3>
-    
-    
-  
-      
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#888;"></div> Driver (locked)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a1a2e;"></div> Available</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0c040;"></div> Selected</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#cc0000;"></div> Booked</div>
+    </div>
+
+    <!-- Fare summary box -->
+    <div style="margin:25px auto; width:340px; background:#fff8e1; border-radius:10px; border-left:4px solid #f0c040; padding:16px 20px;">
+      <p style="margin:4px 0; color:#555; font-size:14px;">
+        Seats selected: <b id="seat-count">0</b>
+      </p>
+      <p style="margin:4px 0; color:#555; font-size:14px;" id="fare-breakdown-line"></p>
+      <p style="margin:8px 0 0 0; font-size:20px; font-weight:800; color:#1a1a2e;">
+        Total: €<span id="total_fare">0.00</span>
+      </p>
+      <p style="margin:2px 0; font-size:12px; color:#888;" id="fare-type-note"></p>
+    </div>
 
     <div style="text-align:center; margin-top:20px;">
-      <button type="submit" class="btn">Confirm Booking</button>
+      <button type="submit" style="background:#f0c040; color:#1a1a2e; padding:13px 35px; border:none; border-radius:8px; font-size:18px; font-weight:700; cursor:pointer;">
+        Confirm Ride Booking
+      </button>
     </div>
-    
-    
 
-  <div style="text-align:center; margin-top:16px;">
-      <a href="/" style="color:#0f8c2f;">← Back to Dashboard</a>
-  </div>
+    <div style="text-align:center; margin-top:16px;">
+      <a href="/" style="color:#1a1a2e;">← Back to Dashboard</a>
+    </div>
+  </form>
 </div>
 
-<!-- Seat selection JS -->
 <script>
-const baseFare = parseFloat(document.getElementById("hidden_fare").value || 0);
-let selected = [];
+  const farePerSeat = parseFloat("{{ prefill.fare|default:'0' }}");
+  let selected = [];
 
-function updateUI(){
-  document.getElementById("selected_seats").value = selected.join(",");
-  document.getElementById("passengers").value = selected.length || 1;
-  const total = (baseFare * (selected.length || 1));
-  document.getElementById("total_fare").innerText = total.toFixed(2);
-  document.getElementById("hidden_fare").value = total;
-}
-
-function toggleSeat(seatId){
-  const el = document.getElementById(seatId);
-  if(!el || el.classList.contains("booked")) return;
-
-  if(el.classList.contains("selected")){
-    el.classList.remove("selected");
-    el.classList.add("available");
-    selected = selected.filter(s=>s!==seatId);
-  } else {
-    el.classList.remove("available");
-    el.classList.add("selected");
-    selected.push(seatId);
+  function isReturn() {
+    return document.getElementById("ticket_type").value === "Return";
   }
-  updateUI();
-}
 
-function toggleReturn(){
-    let type = document.querySelector("select[name='ticket_type']").value;
-    let box = document.getElementById("return-date-box");
+  function updateUI() {
+    const seatCount  = selected.length;
+    const multiplier = isReturn() ? 2 : 1;
+    const total      = farePerSeat * seatCount * multiplier;
 
-    if(type === "Return")
-        box.style.display = "block";
-    else 
-        box.style.display = "none";
-}
+    document.getElementById("selected_seats").value = selected.join(",");
+    document.getElementById("passengers").value     = seatCount || "";
+    document.getElementById("total_fare").innerText = total.toFixed(2);
+    document.getElementById("hidden_fare").value    = farePerSeat;
+    document.getElementById("seat-count").innerText = seatCount;
 
-document.getElementById("return-date-input").addEventListener("change", function(){
-    document.getElementById("return_date_hidden").value = this.value;
-});
+    const breakdownEl = document.getElementById("fare-breakdown-line");
+    const noteEl      = document.getElementById("fare-type-note");
 
-document.addEventListener("DOMContentLoaded", updateUI);
-</script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedDate = urlParams.get("date");
-
-    // Select the real date input
-    let dateInput = document.querySelector("input[name='departure_date']");
-
-    // Auto-fill ONLY if input exists
-    if (dateInput && selectedDate) {
-        dateInput.value = selectedDate;
+    if (seatCount > 0) {
+      if (isReturn()) {
+        breakdownEl.innerHTML =
+          `€${farePerSeat.toFixed(2)} &times; ${seatCount} seat${seatCount > 1 ? "s" : ""} &times; 2 (return) = €${total.toFixed(2)}`;
+        noteEl.textContent = "Return fare = outbound + return journey";
+      } else {
+        breakdownEl.innerHTML =
+          `€${farePerSeat.toFixed(2)} &times; ${seatCount} seat${seatCount > 1 ? "s" : ""} = €${total.toFixed(2)}`;
+        noteEl.textContent = "One way fare";
+      }
+    } else {
+      breakdownEl.innerHTML = "";
+      noteEl.textContent    = "";
     }
-});
+  }
+
+  function toggleSeat(seatId) {
+    const el = document.getElementById("seat-" + seatId);
+    if (!el || el.classList.contains("seat-booked") || el.classList.contains("seat-driver")) return;
+    if (selected.includes(seatId)) {
+      selected = selected.filter(s => s !== seatId);
+      el.classList.remove("seat-selected");
+      el.classList.add("seat-available");
+    } else {
+      selected.push(seatId);
+      el.classList.remove("seat-available");
+      el.classList.add("seat-selected");
+    }
+    updateUI();
+  }
+
+  function toggleReturn() {
+    const type = document.getElementById("ticket_type").value;
+    document.getElementById("return-date-box").style.display = (type === "Return") ? "block" : "none";
+  }
+
+  document.getElementById("return-date-input").addEventListener("change", function () {
+    document.getElementById("return_date_hidden").value = this.value;
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    updateUI();
+    const urlParams    = new URLSearchParams(window.location.search);
+    const selectedDate = urlParams.get("date");
+    const dateInput    = document.querySelector("input[name='departure_date']");
+    if (dateInput && selectedDate) dateInput.value = selectedDate;
+  });
 </script>
-</body>
+
 {% endblock %}

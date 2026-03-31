@@ -1,24 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Confirm OTP</title>
+    <meta charset="UTF-8">
+    <title>Verify Account – RideReserve</title>
     <style>
-        body { background:#eef1ff; font-family:Arial; display:flex; justify-content:center; align-items:center; height:100vh; }
-        .card { background:white; padding:25px; width:350px; border-radius:10px; box-shadow:0 0 15px #00000020; }
-        input { width:100%; padding:12px; margin-top:10px; border:1px solid #ccc; border-radius:6px; }
-        button { width:100%; margin-top:20px; padding:12px; background:#1f53ff; border:none; color:white; border-radius:6px; }
+        body {
+            background: #1a1a2e;
+            font-family: Arial;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .card {
+            background: white;
+            padding: 35px;
+            width: 370px;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            border-top: 5px solid #f0c040;
+        }
+        .logo {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 5px;
+        }
+        h2 {
+            text-align: center;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        p {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #f0c040;
+        }
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 13px;
+            background: #f0c040;
+            border: none;
+            color: #1a1a2e;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { background: #e0b030; }
+        {% if messages %}
+        .msg {
+            background: #fff8e1;
+            color: #5a4000;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        {% endif %}
     </style>
 </head>
 <body>
-
 <div class="card">
-    <h2>Enter OTP</h2>
+    <div class="logo">🚗 RideReserve</div>
+    <h2>Verify Your Account</h2>
+    <p>Enter the OTP sent to your email to confirm your account.</p>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="msg">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
     <form method="POST">
         {% csrf_token %}
-        <input type="text" name="code" placeholder="Verification Code" required>
+        <input type="text" name="code" placeholder="Enter Verification Code" required>
         <button type="submit">Confirm Account</button>
     </form>
 </div>
-
 </body>
 </html>

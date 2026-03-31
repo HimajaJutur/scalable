@@ -2,11 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Login - TicketBuddy</title>
-
+    <title>Login – RideReserve</title>
     <style>
         body {
-            background: #eef1ff;
+            background: #1a1a2e;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,14 +14,24 @@
         }
         .card {
             background: white;
-            padding: 30px;
-            width: 350px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px #00000020;
+            padding: 35px;
+            width: 370px;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            border-top: 5px solid #f0c040;
+        }
+        .logo {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 5px;
         }
         h2 {
             text-align: center;
-            color: #1f53ff;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            font-size: 20px;
         }
         input {
             width: 100%;
@@ -30,42 +39,51 @@
             margin-top: 12px;
             border-radius: 6px;
             border: 1px solid #ccc;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #f0c040;
         }
         button {
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             margin-top: 20px;
-            background: #1f53ff;
+            background: #f0c040;
             border: none;
-            color: white;
+            color: #1a1a2e;
             font-size: 16px;
+            font-weight: 700;
             border-radius: 6px;
             cursor: pointer;
         }
-        button:hover {
-            opacity: 0.9;
-        }
+        button:hover { background: #e0b030; }
         .link {
             text-align: center;
             margin-top: 15px;
-        }
-        .msg {
-            margin-bottom: 10px;
-            color: red;
-            text-align: center;
             font-size: 14px;
         }
-        .success {
-            color: green;
+        .link a { color: #1a1a2e; font-weight: 600; }
+        .msg {
+            margin-bottom: 10px;
+            color: #cc0000;
+            text-align: center;
+            font-size: 14px;
+            background: #fff0f0;
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .msg.success {
+            color: #006622;
+            background: #d7ffe0;
         }
     </style>
 </head>
-
 <body>
 <div class="card">
-    <h2>Login</h2>
-
-    <!-- MESSAGE DISPLAY -->
+    <div class="logo">🚗 RideReserve</div>
+    <h2>Welcome Back</h2>
     {% if messages %}
         {% for message in messages %}
             <div class="msg {% if message.tags == 'success' %}success{% endif %}">
@@ -73,20 +91,16 @@
             </div>
         {% endfor %}
     {% endif %}
-
     <form method="POST">
         {% csrf_token %}
         <input type="text" name="username" placeholder="Enter Username" required>
         <input type="password" name="password" placeholder="Enter Password" required>
-
         <button type="submit">Login</button>
     </form>
-
     <div class="link">
-        <a href="/register">Create an account</a><br><br>
+        <a href="/register">Don't have an account? Register →</a><br><br>
         <a href="/forgot-password">Forgot Password?</a>
     </div>
-
 </div>
 </body>
 </html>

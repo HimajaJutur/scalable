@@ -1,38 +1,61 @@
 {% extends "buddy/base.html" %}
-{% block title %}Profile{% endblock %}
-
+{% block title %}My Profile – RideReserve{% endblock %}
 {% block content %}
+
 <div style="padding:40px;">
+    <div style="
+        background:white;
+        width:60%;
+        margin:auto;
+        padding:30px;
+        border-radius:14px;
+        box-shadow:0 4px 20px rgba(0,0,0,0.12);
+        border-top:5px solid #f0c040;
+    ">
+        <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;">
+            👤 My Profile
+        </h2>
 
-<div style="
-    background:white;
-    width:60%;
-    margin:auto;
-    padding:30px;
-    border-radius:14px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.12);
-">
+        <div style="background:#fff8e1; padding:15px; border-radius:8px; margin-bottom:20px;">
+            <p style="margin:8px 0; font-size:17px;"><b>Username:</b> {{ request.session.username }}</p>
+            <p style="margin:8px 0; font-size:17px;"><b>Email:</b> {{ request.session.email }}</p>
+        </div>
 
-    <h2 style="text-align:center; color:#0058ff; margin-bottom:20px;">
-         User Profile
-    </h2>
+        <hr style="margin:20px 0; border:none; border-top:1px solid #eee;">
 
-    <p><b>Username:</b> {{ request.session.username }}</p>
-    <p><b>Email:</b> {{ request.session.email }}</p>
-
-    <hr style="margin:20px 0;">
-
-    <div style="text-align:center;">
-        <a href="/history" style="
-            padding:12px 25px;
-            background:#0058ff;
-            color:white;
-            border-radius:8px;
-            text-decoration:none;
-        "> View My Bookings</a>
+        <div style="text-align:center; display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
+            <a href="/history" style="
+                padding:12px 25px;
+                background:#1a1a2e;
+                color:#f0c040;
+                border-radius:8px;
+                text-decoration:none;
+                font-weight:700;
+                font-size:16px;">
+                📄 My Rides
+            </a>
+            <a href="/schedules" style="
+                padding:12px 25px;
+                background:#f0c040;
+                color:#1a1a2e;
+                border-radius:8px;
+                text-decoration:none;
+                font-weight:700;
+                font-size:16px;">
+                🚗 Book a Ride
+            </a>
+            <a href="/logout" style="
+                padding:12px 25px;
+                background:#ff4b4b;
+                color:white;
+                border-radius:8px;
+                text-decoration:none;
+                font-weight:700;
+                font-size:16px;">
+                🚪 Logout
+            </a>
+        </div>
     </div>
-
 </div>
 
-</div>
 {% endblock %}

@@ -27,11 +27,13 @@
 
 <div class="seat-grid">
     {% for s in seats %}
-        <div class="seat 
-             {% if s.is_booked %}booked{% else %}available{% endif %}"
-             data-seat="{{ s.seat_no }}">
-            {{ s.seat_no }}
-        </div>
+        {% if s.seat_no != "A1" and s.seat_no != "Seat 1" %}
+            <div class="seat 
+                 {% if s.is_booked %}booked{% else %}available{% endif %}"
+                 data-seat="{{ s.seat_no }}">
+                {{ s.seat_no }}
+            </div>
+        {% endif %}
     {% endfor %}
 </div>
 

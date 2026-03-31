@@ -1,11 +1,11 @@
 {% extends "buddy/base.html" %}
-{% block title %}My Bookings{% endblock %}
+{% block title %}My Rides – RideReserve{% endblock %}
 
 {% block content %}
 <div style="padding:30px;">
 
-  <h2 style="text-align:center; color:#0058ff; margin-bottom:25px;">
-       Your Booking History
+  <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;">
+    🚗 Your Ride History
   </h2>
 
   {% if groups %}
@@ -14,7 +14,6 @@
     {% for g in groups %}
       {% with b=g.outbound %}
 
-     
       <div style="
           background:white;
           border-radius:12px;
@@ -23,14 +22,12 @@
           padding:20px;
       ">
 
-        
-        <div style="background:#e7f0ff; padding:12px; border-radius:8px; margin-bottom:15px;">
-          <h3 style="margin:0; color:#0058ff;">🚌 Outbound Trip</h3>
+        <div style="background:#fff8e1; padding:12px; border-radius:8px; margin-bottom:15px; border-left:4px solid #f0c040;">
+          <h3 style="margin:0; color:#1a1a2e;">🚗 Outbound Ride</h3>
         </div>
 
-        <!-- Outbound Details Table -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
-          <tr style="background:#f5f8ff;">
+          <tr style="background:#1a1a2e; color:#f0c040;">
             <th style="padding:10px;">Booking ID</th>
             <th>From</th>
             <th>To</th>
@@ -38,28 +35,57 @@
             <th>Departure</th>
             <th>Arrival</th>
             <th>Seats</th>
-            <th>Total</th>
+            <th>Base Fare</th>
+            <th>VAT</th>
+            <th>Total (incl. VAT)</th>
             <th>Status</th>
             <th>Ticket</th>
             <th>Action</th>
           </tr>
 
           <tr style="text-align:center;">
-            <td>{{ b.booking_id }}</td>
+            <td style="padding:10px;">{{ b.booking_id }}</td>
             <td>{{ b.source }}</td>
             <td>{{ b.destination }}</td>
             <td>{{ b.departure_date }}</td>
             <td>{{ b.departure_time }}</td>
             <td>{{ b.arrival_time }}</td>
             <td>{% if b.seats %}{{ b.seats|join:", " }}{% else %}-{% endif %}</td>
+
+            {# Base fare #}
             <td>€{{ b.fare }}</td>
-            <td>{{ b.status }}</td>
+
+            {# VAT amount — show if stored, otherwise dash #}
+            <td style="color:#555; font-size:13px;">
+              {% if b.tax_amount %}
+                €{{ b.tax_amount }} <span style="color:#888;">({{ b.tax_rate }}%)</span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            {# Total incl. VAT — prefer final_price, fall back to fare #}
+            <td style="font-weight:700; color:#1a1a2e;">
+              {% if b.final_price %}
+                €{{ b.final_price }}
+              {% else %}
+                €{{ b.fare }}
+              {% endif %}
+            </td>
+
+            <td>
+              {% if b.status == "CANCELLED" %}
+                <span style="color:#cc0000; font-weight:600;">CANCELLED</span>
+              {% else %}
+                <span style="color:#28a745; font-weight:600;">{{ b.status }}</span>
+              {% endif %}
+            </td>
 
             <td>
               {% if b.pdf_url %}
                 <a href="{{ b.pdf_url }}" target="_blank"
-                   style="padding:6px 12px; background:#28a745; color:white; border-radius:6px; text-decoration:none;">
-                   PDF
+                   style="padding:6px 12px; background:#f0c040; color:#1a1a2e; border-radius:6px; text-decoration:none; font-weight:600;">
+                   📄 PDF
                 </a>
               {% else %}
                 -
@@ -79,14 +105,13 @@
           </tr>
         </table>
 
-        <!-- RETURN TICKETS -->
         {% if g.returns %}
-        <div style="background:#eaffea; padding:12px; border-radius:8px; margin-bottom:10px;">
-          <h4 style="margin:0; color:#0f8c2f;">↩ Return Trip(s)</h4>
+        <div style="background:#fff8e1; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #f0c040;">
+          <h4 style="margin:0; color:#1a1a2e;">↩ Return Ride(s)</h4>
         </div>
 
         <table style="width:100%; border-collapse:collapse;">
-          <tr style="background:#f0fff0;">
+          <tr style="background:#1a1a2e; color:#f0c040;">
             <th style="padding:10px;">Booking ID</th>
             <th>From</th>
             <th>To</th>
@@ -94,7 +119,9 @@
             <th>Departure</th>
             <th>Arrival</th>
             <th>Seats</th>
-            <th>Total</th>
+            <th>Base Fare</th>
+            <th>VAT</th>
+            <th>Total (incl. VAT)</th>
             <th>Status</th>
             <th>Ticket</th>
             <th>Action</th>
@@ -102,21 +129,45 @@
 
           {% for r in g.returns %}
           <tr style="text-align:center;">
-            <td>{{ r.booking_id }}</td>
+            <td style="padding:10px;">{{ r.booking_id }}</td>
             <td>{{ r.source }}</td>
             <td>{{ r.destination }}</td>
             <td>{{ r.departure_date }}</td>
             <td>{{ r.departure_time }}</td>
             <td>{{ r.arrival_time }}</td>
             <td>{% if r.seats %}{{ r.seats|join:", " }}{% else %}-{% endif %}</td>
+
             <td>€{{ r.fare }}</td>
-            <td>{{ r.status }}</td>
+
+            <td style="color:#555; font-size:13px;">
+              {% if r.tax_amount %}
+                €{{ r.tax_amount }} <span style="color:#888;">({{ r.tax_rate }}%)</span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            <td style="font-weight:700; color:#1a1a2e;">
+              {% if r.final_price %}
+                €{{ r.final_price }}
+              {% else %}
+                €{{ r.fare }}
+              {% endif %}
+            </td>
+
+            <td>
+              {% if r.status == "CANCELLED" %}
+                <span style="color:#cc0000; font-weight:600;">CANCELLED</span>
+              {% else %}
+                <span style="color:#28a745; font-weight:600;">{{ r.status }}</span>
+              {% endif %}
+            </td>
 
             <td>
               {% if r.pdf_url %}
                 <a href="{{ r.pdf_url }}" target="_blank"
-                   style="padding:6px 12px; background:#28a745; color:white; border-radius:6px; text-decoration:none;">
-                   PDF
+                   style="padding:6px 12px; background:#f0c040; color:#1a1a2e; border-radius:6px; text-decoration:none; font-weight:600;">
+                   📄 PDF
                 </a>
               {% else %}-{% endif %}
             </td>
@@ -143,7 +194,7 @@
   </div>
 
   {% else %}
-    <p style="text-align:center; color:#666;">No bookings found.</p>
+    <p style="text-align:center; color:#666;">No rides found. <a href="/schedules" style="color:#1a1a2e; font-weight:600;">Book your first ride →</a></p>
   {% endif %}
 
 </div>

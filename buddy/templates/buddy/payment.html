@@ -1,41 +1,254 @@
 {% extends "buddy/base.html" %}
-{% block title %}Payment{% endblock %}
-
+{% block title %}Complete Payment – RideReserve{% endblock %}
 {% block content %}
-<div style="width:60%; margin:40px auto; padding:20px; background:white; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,0.1);">
 
-    <h2 style="text-align:center; color:#0058ff;">Complete Payment</h2>
+<div style="width:60%; margin:40px auto; padding:30px; background:white; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,0.1);">
+  <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;">🚗 Confirm Your Ride</h2>
 
-    <p><b>From:</b> {{ from }}</p>
-    <p><b>To:</b> {{ to }}</p>
-    <p><b>Date:</b> {{ date }}</p>
-    <p><b>Fare:</b> €{{ fare }}</p>
-    <p><b>Seats:</b> {{ seats }}</p>
+  <!-- Outbound Summary -->
+  <div style="background:#fff8e1; border-left:4px solid #f0c040; padding:15px; border-radius:8px; margin-bottom:20px;">
+    <h3 style="margin:0 0 10px 0; color:#1a1a2e;">Outbound Ride</h3>
+    <p style="margin:4px 0;"><b>From:</b> {{ from }} → <b>{{ to }}</b></p>
+    <p style="margin:4px 0;"><b>Date:</b> {{ date }}</p>
+    <p style="margin:4px 0;"><b>Departure:</b> {{ outbound_departure_time }} &nbsp;|&nbsp; <b>Arrival:</b> {{ outbound_arrival_time }}</p>
+    <p style="margin:4px 0;"><b>Seats:</b> {{ outbound_seats }}</p>
+    <p style="margin:4px 0;"><b>Base Fare:</b> €{{ outbound_fare }}</p>
+    <p style="margin:4px 0;"><b>VAT (<span id="outbound-tax-rate">...</span>%):</b> €<span id="outbound-tax-amount">...</span></p>
+    <p style="margin:4px 0;"><b>Fare incl. VAT:</b> €<span id="outbound-final">...</span></p>
+  </div>
 
-    <h3>Select Payment Method</h3>
+  {% if return_fare %}
+  <div style="background:#f0fff0; border-left:4px solid #28a745; padding:15px; border-radius:8px; margin-bottom:20px;">
+    <h3 style="margin:0 0 10px 0; color:#1a1a2e;">↩ Return Ride</h3>
+    <p style="margin:4px 0;"><b>From:</b> {{ to }} → <b>{{ from }}</b></p>
+    <p style="margin:4px 0;"><b>Departure:</b> {{ return_departure_time }} &nbsp;|&nbsp; <b>Arrival:</b> {{ return_arrival_time }}</p>
+    <p style="margin:4px 0;"><b>Seats:</b> {{ return_seats }}</p>
+    <p style="margin:4px 0;"><b>Base Fare:</b> €{{ return_fare }}</p>
+    <p style="margin:4px 0;"><b>VAT (<span id="return-tax-rate">...</span>%):</b> €<span id="return-tax-amount">...</span></p>
+    <p style="margin:4px 0;"><b>Fare incl. VAT:</b> €<span id="return-final">...</span></p>
+  </div>
+  {% endif %}
+
+  <!-- Total -->
+  <div style="background:#1a1a2e; color:#f0c040; padding:15px; border-radius:8px; text-align:center; margin-bottom:10px;">
+    <h2 style="margin:0;">Total: €<span id="grand-total">...</span></h2>
+  </div>
+  <div style="text-align:center; font-size:13px; color:#888; margin-bottom:25px;">
+    Includes VAT • All prices in EUR
+  </div>
+
+  <!-- Step 1: Choose payment method -->
+  <div id="method-selection">
+    <h3 style="color:#1a1a2e;">Select Payment Method</h3>
+    <div style="display:flex; gap:20px; margin-top:15px;">
+      <button onclick="showPayment('card')" style="
+          flex:1; padding:18px; background:#1a1a2e; color:#f0c040;
+          border:none; border-radius:10px; font-size:17px; font-weight:700; cursor:pointer;">
+        💳 Card Payment
+      </button>
+      <button onclick="showPayment('qr')" style="
+          flex:1; padding:18px; background:#1a1a2e; color:#f0c040;
+          border:none; border-radius:10px; font-size:17px; font-weight:700; cursor:pointer;">
+        📱 QR Payment
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2a: Card Payment Form -->
+  <div id="card-payment" style="display:none; margin-top:25px;">
+    <h3 style="color:#1a1a2e;">💳 Enter Card Details</h3>
+    <form method="GET" action="/payment-success/">
+      <input type="hidden" name="method" value="CARD">
+      <input type="hidden" name="from" value="{{ from }}">
+      <input type="hidden" name="to" value="{{ to }}">
+      <input type="hidden" name="date" value="{{ date }}">
+      <input type="hidden" name="fare" value="{{ fare }}">
+      <input type="hidden" name="route" value="{{ route }}">
+      <input type="hidden" name="departure_time" value="{{ departure_time }}">
+      <input type="hidden" name="arrival_time" value="{{ arrival_time }}">
+      <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+      <input type="hidden" name="seats" value="{{ outbound_seats }}">
+      <input type="hidden" name="total_fare" id="hidden-total" value="">
+
+      <div style="margin-bottom:15px;">
+        <label style="display:block; font-weight:600; margin-bottom:6px; color:#1a1a2e;">Cardholder Name</label>
+        <input type="text" placeholder="John Smith" required style="
+            width:100%; padding:12px; border:2px solid #ddd;
+            border-radius:8px; font-size:15px; box-sizing:border-box;">
+      </div>
+
+      <div style="margin-bottom:15px;">
+        <label style="display:block; font-weight:600; margin-bottom:6px; color:#1a1a2e;">Card Number</label>
+        <input type="text" placeholder="1234 5678 9012 3456" maxlength="19"
+               oninput="formatCard(this)" required style="
+            width:100%; padding:12px; border:2px solid #ddd;
+            border-radius:8px; font-size:15px; box-sizing:border-box; letter-spacing:2px;">
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:6px; color:#1a1a2e;">Expiry Date</label>
+          <input type="text" placeholder="MM/YY" maxlength="5"
+                 oninput="formatExpiry(this)" required style="
+              width:100%; padding:12px; border:2px solid #ddd;
+              border-radius:8px; font-size:15px; box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:6px; color:#1a1a2e;">CVV</label>
+          <input type="text" placeholder="123" maxlength="3" required style="
+              width:100%; padding:12px; border:2px solid #ddd;
+              border-radius:8px; font-size:15px; box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="background:#f0fff0; padding:12px; border-radius:8px; margin-bottom:20px; text-align:center;">
+        🔒 <b style="color:#1a1a2e;">Secure Payment</b> — Your card details are encrypted
+      </div>
+
+      <div style="text-align:center;">
+        <button type="submit" style="
+            padding:14px 40px; background:#f0c040; color:#1a1a2e;
+            border:none; border-radius:8px; font-size:18px; font-weight:700; cursor:pointer;">
+          Pay €<span id="card-total-display">...</span> Now
+        </button>
+      </div>
+      <div style="text-align:center; margin-top:12px;">
+        <a href="#" onclick="resetMethod()" style="color:#888; font-size:14px;">← Change payment method</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Step 2b: QR Payment -->
+  <div id="qr-payment" style="display:none; margin-top:25px; text-align:center;">
+    <h3 style="color:#1a1a2e;">📱 Scan to Pay</h3>
+    <p style="color:#666; margin-bottom:20px;">Scan the QR code below with your banking app to pay <b>€<span id="qr-total-display">...</span></b></p>
+
+    <div style="background:#f9f9f9; border:2px solid #ddd; border-radius:16px; padding:25px; display:inline-block; margin-bottom:20px;">
+      <img id="qr-img" src="" alt="Payment QR Code" style="width:200px; height:200px; border-radius:8px;">
+      <p style="margin:10px 0 0 0; font-size:13px; color:#888;">RideReserve Payment QR</p>
+    </div>
+
+    <div style="background:#fff8e1; border-left:4px solid #f0c040; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px;">
+      <p style="margin:4px 0;"><b>Amount:</b> €<span id="qr-amount-display">...</span></p>
+      <p style="margin:4px 0;"><b>Reference:</b> RideReserve-{{ date }}-{{ from }}-{{ to }}</p>
+      <p style="margin:4px 0; font-size:13px; color:#888;">Use this reference in your banking app</p>
+    </div>
+
+    <p style="color:#666; font-size:14px; margin-bottom:15px;">
+      Once you have completed payment in your banking app, click below to confirm your booking.
+    </p>
 
     <form method="GET" action="/payment-success/">
+      <input type="hidden" name="method" value="QR">
+      <input type="hidden" name="from" value="{{ from }}">
+      <input type="hidden" name="to" value="{{ to }}">
+      <input type="hidden" name="date" value="{{ date }}">
+      <input type="hidden" name="fare" value="{{ fare }}">
+      <input type="hidden" name="route" value="{{ route }}">
+      <input type="hidden" name="departure_time" value="{{ departure_time }}">
+      <input type="hidden" name="arrival_time" value="{{ arrival_time }}">
+      <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+      <input type="hidden" name="seats" value="{{ outbound_seats }}">
+      <input type="hidden" name="total_fare" id="qr-hidden-total" value="">
 
-        <input type="hidden" name="from" value="{{ from }}">
-        <input type="hidden" name="to" value="{{ to }}">
-        <input type="hidden" name="date" value="{{ date }}">
-        <input type="hidden" name="return_date" value="{{ return_date }}">
-        <input type="hidden" name="fare" value="{{ fare }}">
-        <input type="hidden" name="route" value="{{ route }}">
-        <input type="hidden" name="departure_time" value="{{ departure_time }}">
-        <input type="hidden" name="arrival_time" value="{{ arrival_time }}">
-        <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
-        <input type="hidden" name="seats" value="{{ seats }}">
-        <input type="hidden" name="outbound_id" value="{{ outbound_id }}">
-        <input type="hidden" name="parent_booking_id" value="{{ parent_booking_id }}">
-        
-
-        <label><input type="radio" name="method" value="CARD" required> Card Payment</label><br><br>
-        <label><input type="radio" name="method" value="QR" required> QR Payment</label><br><br>
-
-        <button type="submit" style="padding:12px 26px; background:#28a745; color:white; border:none; border-radius:6px;">
-            Pay Now
-        </button>
+      <button type="submit" style="
+          padding:14px 40px; background:#28a745; color:white;
+          border:none; border-radius:8px; font-size:18px; font-weight:700; cursor:pointer;">
+        ✅ I've Completed Payment — Confirm Booking
+      </button>
     </form>
+
+    <div style="margin-top:12px;">
+      <a href="#" onclick="resetMethod()" style="color:#888; font-size:14px;">← Change payment method</a>
+    </div>
+  </div>
 </div>
+
+<script>
+  const TAX_API = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
+
+  const outboundFare = parseFloat("{{ outbound_fare }}") || 0;
+  const returnFare   = parseFloat("{{ return_fare }}")   || 0;
+  const hasReturn    = returnFare > 0;
+
+  async function fetchTax(price) {
+    const response = await fetch(TAX_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ price: price, country_code: "IE" })
+    });
+    return await response.json();
+  }
+
+  async function loadTaxes() {
+    try {
+      // Fetch tax for outbound fare
+      const outbound = await fetchTax(outboundFare);
+      document.getElementById("outbound-tax-rate").textContent   = outbound.tax_rate;
+      document.getElementById("outbound-tax-amount").textContent = outbound.tax_amount.toFixed(2);
+      document.getElementById("outbound-final").textContent      = outbound.final_price.toFixed(2);
+
+      let grandTotal = outbound.final_price;
+
+      // Fetch tax for return fare if present
+      if (hasReturn) {
+        const ret = await fetchTax(returnFare);
+        document.getElementById("return-tax-rate").textContent   = ret.tax_rate;
+        document.getElementById("return-tax-amount").textContent = ret.tax_amount.toFixed(2);
+        document.getElementById("return-final").textContent      = ret.final_price.toFixed(2);
+        grandTotal += ret.final_price;
+      }
+
+      const totalStr = grandTotal.toFixed(2);
+
+      // Update all total displays
+      document.getElementById("grand-total").textContent        = totalStr;
+      document.getElementById("card-total-display").textContent = totalStr;
+      document.getElementById("qr-total-display").textContent   = totalStr;
+      document.getElementById("qr-amount-display").textContent  = totalStr;
+
+      // Populate hidden form fields
+      document.getElementById("hidden-total").value    = totalStr;
+      document.getElementById("qr-hidden-total").value = totalStr;
+
+      // Update QR code image with real total
+      const qrData = encodeURIComponent(
+        "RideReserve Payment | Amount: \u20ac" + totalStr +
+        " | From: {{ from }} | To: {{ to }} | Date: {{ date }}"
+      );
+      document.getElementById("qr-img").src =
+        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrData;
+
+    } catch (err) {
+      console.error("Tax API error:", err);
+      document.getElementById("grand-total").textContent = "Error";
+    }
+  }
+
+  loadTaxes();
+
+  function showPayment(method) {
+    document.getElementById("method-selection").style.display = "none";
+    document.getElementById("card-payment").style.display = (method === "card") ? "block" : "none";
+    document.getElementById("qr-payment").style.display   = (method === "qr")   ? "block" : "none";
+  }
+
+  function resetMethod() {
+    document.getElementById("method-selection").style.display = "block";
+    document.getElementById("card-payment").style.display  = "none";
+    document.getElementById("qr-payment").style.display    = "none";
+  }
+
+  function formatCard(input) {
+    let val = input.value.replace(/\D/g, "").substring(0, 16);
+    input.value = val.replace(/(.{4})/g, "$1 ").trim();
+  }
+
+  function formatExpiry(input) {
+    let val = input.value.replace(/\D/g, "").substring(0, 4);
+    if (val.length >= 2) val = val.substring(0, 2) + "/" + val.substring(2);
+    input.value = val;
+  }
+</script>
+
 {% endblock %}

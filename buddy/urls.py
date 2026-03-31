@@ -22,5 +22,6 @@ urlpatterns = [
     path("return-seat/", return_seat_page, name="return-seat"),
     path("payment/", views.payment_page, name="payment"),
     path("payment-success/", views.payment_success, name="payment-success"),
+    path('api/fare-calculator', views.fare_calculator_api, name='fare-calculator'),
 ]
     

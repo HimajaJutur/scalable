@@ -2,11 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Register - TicketBuddy</title>
-
+    <title>Register – RideReserve</title>
     <style>
         body {
-            background: #eef1ff;
+            background: #1a1a2e;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,14 +14,24 @@
         }
         .card {
             background: white;
-            padding: 30px;
-            width: 350px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px #00000020;
+            padding: 35px;
+            width: 370px;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            border-top: 5px solid #f0c040;
+        }
+        .logo {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 5px;
         }
         h2 {
             text-align: center;
-            color: #1f53ff;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            font-size: 20px;
         }
         input {
             width: 100%;
@@ -30,47 +39,55 @@
             margin-top: 12px;
             border-radius: 6px;
             border: 1px solid #ccc;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #f0c040;
         }
         button {
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             margin-top: 20px;
-            background: #1f53ff;
+            background: #f0c040;
             border: none;
-            color: white;
+            color: #1a1a2e;
             font-size: 16px;
+            font-weight: 700;
             border-radius: 6px;
             cursor: pointer;
         }
+        button:hover { background: #e0b030; }
         .link {
             margin-top: 15px;
             text-align: center;
+            font-size: 14px;
         }
+        .link a { color: #1a1a2e; font-weight: 600; }
     </style>
 </head>
-
 <body>
-
 <div class="card">
+    <div class="logo">🚗 RideReserve</div>
     <h2>Create Account</h2>
-
+    {% if messages %}
+        {% for message in messages %}
+            <div style="background:#fff8e1; color:#5a4000; padding:10px; border-radius:6px; margin-bottom:10px; text-align:center; font-size:14px;">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
     <form method="POST">
         {% csrf_token %}
         <input type="text" name="username" placeholder="Enter Username" required>
         <input type="email" name="email" placeholder="Enter Email" required>
         <input type="password" name="password" placeholder="Enter Password" required>
-
         <button type="submit">Register</button>
     </form>
-
     <div class="link">
-        <a href="/login">Already have an account?</a>
+        <a href="/login">Already have an account? Login →</a>
     </div>
 </div>
-
-<script>
-    console.log("Register Page Loaded");
-</script>
-
 </body>
 </html>

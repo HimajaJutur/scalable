@@ -2,14 +2,12 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}TicketBuddy{% endblock %}</title>
-
+    <title>{% block title %}RideReserve{% endblock %}</title>
     <style>
         body { margin: 0; font-family: Arial; background:#eef3ff; }
-
         
         .navbar {
-            background: #0058ff;
+            background: #1a1a2e;
             padding: 14px 30px;
             display: flex;
             align-items: center;
@@ -18,7 +16,6 @@
             position: relative;
             z-index: 999;
         }
-        
         
         .nav-left {
             display: flex;
@@ -30,10 +27,10 @@
             font-size: 26px;
             font-weight: 700;
             text-decoration: none;
-            color: white;
+            color: #f0c040;
+            letter-spacing: 1px;
         }
         
-       
         .nav-center {
             display: flex;
             gap: 28px;
@@ -50,13 +47,12 @@
             opacity: 0.85;
         }
         
-        
         .dropdown {
             position: relative;
         }
         .dropbtn {
-            background: white;
-            color: #0058ff;
+            background: #f0c040;
+            color: #1a1a2e;
             padding: 10px 18px;
             border-radius: 6px;
             cursor: pointer;
@@ -79,70 +75,53 @@
             display: block;
             padding: 12px;
             text-decoration: none;
-            color: #0058ff;
+            color: #1a1a2e;
             font-size: 15px;
         }
         .dropdown-content a:hover {
-            background: #e7f0ff;
+            background: #fff8e1;
         }
         .dropdown:hover .dropdown-content {
             display: block;
         }
-
-
     </style>
 </head>
-
 <body>
-
 <div class="navbar">
-
-    <!-- LEFT: Logo -->
     <div class="nav-left">
-        <a href="/" class="nav-title">TicketBuddy</a>
-
+        <a href="/" class="nav-title">🚗 RideReserve</a>
         <a href="/destinations" class="nav-link">All Destinations</a>
         <a href="/contact" class="nav-link">Contact</a>
-        <a href="/schedules" class="nav-link">Schedules</a>
+        <a href="/schedules" class="nav-link">Rides</a>
     </div>
-
-    <!-- RIGHT: User Dropdown -->
     <div class="dropdown">
-        <button class="dropbtn">{{ request.session.username }}</button>
+        <button class="dropbtn">{{ request.session.username }} ▾</button>
         <div class="dropdown-content">
             <a href="/profile">👤 Profile</a>
-            <a href="/history">📄 My Bookings</a>
+            <a href="/history">📄 My Rides</a>
             <a href="/alerts">🔔 Alerts</a>
             <a href="/logout">🚪 Logout</a>
         </div>
     </div>
-
 </div>
-
-
 
 {% if messages %}
     <div style="
-        width:70%; 
+        width:70%;
         margin:20px auto;
         padding:12px;
-        background:#d7ffe0;
-        border-left:6px solid #00a83e;
-        color:#006622;
+        background:#fff8e1;
+        border-left:6px solid #f0c040;
+        color:#5a4000;
         font-size:16px;
-        border-radius:6px;
-        ">
+        border-radius:6px;">
         {% for message in messages %}
             {{ message }}
         {% endfor %}
     </div>
 {% endif %}
 
-<!-- PAGE CONTENT -->
 {% block content %}
 {% endblock %}
-
 </body>
 </html>
-
-
