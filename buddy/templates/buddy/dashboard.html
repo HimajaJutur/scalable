@@ -1,0 +1,157 @@
+{% extends "buddy/base.html" %}
+{% block title %}Analytics Dashboard – RideReserve{% endblock %}
+{% block content %}
+
+<style>
+.dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    width: 85%;
+    margin: 30px auto;
+}
+.dash-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    border-top: 4px solid #f0c040;
+}
+.dash-card h5 {
+    margin: 0 0 18px 0;
+    color: #1a1a2e;
+    font-size: 16px;
+    font-weight: 700;
+}
+.full-width { grid-column: span 2; }
+canvas { max-height: 280px; }
+</style>
+
+<h2 style="text-align:center; margin-top:30px; color:#1a1a2e;">📊 Analytics Dashboard</h2>
+<p style="text-align:center; color:#666; margin-bottom:10px;">Live data from all bookings</p>
+
+<div class="dash-grid">
+
+    <!-- 1. Top 5 Routes -->
+    <div class="dash-card">
+        <h5>🛣️ Top 5 Most Booked Routes</h5>
+        <canvas id="routesChart"></canvas>
+    </div>
+
+    <!-- 2. Car Types -->
+    <div class="dash-card">
+        <h5>🚗 Most Popular Car Types</h5>
+        <canvas id="carChart"></canvas>
+    </div>
+
+    <!-- 3. Revenue by Month -->
+    <div class="dash-card full-width">
+        <h5>💰 Revenue by Month (€)</h5>
+        <canvas id="revenueChart"></canvas>
+    </div>
+
+    <!-- 4. One Way vs Return -->
+    <div class="dash-card">
+        <h5>🎫 One Way vs Return Tickets</h5>
+        <canvas id="ticketTypeChart"></canvas>
+    </div>
+
+    <!-- 5. Busiest Departure Times -->
+    <div class="dash-card">
+        <h5>🕒 Busiest Departure Times</h5>
+        <canvas id="timesChart"></canvas>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const data = {{ analytics_json|safe }};
+
+// 1. Top 5 Routes — horizontal bar
+new Chart(document.getElementById('routesChart'), {
+    type: 'bar',
+    data: {
+        labels: data.top_routes.map(r => r.route),
+        datasets: [{
+            label: 'Bookings',
+            data: data.top_routes.map(r => r.total_bookings),
+            backgroundColor: '#f0c040',
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+
+// 2. Car Types — doughnut
+new Chart(document.getElementById('carChart'), {
+    type: 'doughnut',
+    data: {
+        labels: data.car_types.map(c => c.car_type),
+        datasets: [{
+            data: data.car_types.map(c => c.total_bookings),
+            backgroundColor: ['#f0c040','#1a1a2e','#4CAF50','#2196F3','#FF5722','#9C27B0'],
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+// 3. Revenue by Month — line
+new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+        labels: data.revenue.map(r => r.month),
+        datasets: [{
+            label: 'Revenue (€)',
+            data: data.revenue.map(r => r.total_revenue),
+            borderColor: '#f0c040',
+            backgroundColor: 'rgba(240,192,64,0.15)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#f0c040',
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// 4. One Way vs Return — pie
+new Chart(document.getElementById('ticketTypeChart'), {
+    type: 'pie',
+    data: {
+        labels: data.ticket_types.map(t => t.ticket_type),
+        datasets: [{
+            data: data.ticket_types.map(t => t.count),
+            backgroundColor: ['#f0c040', '#1a1a2e'],
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+// 5. Busiest Times — bar
+new Chart(document.getElementById('timesChart'), {
+    type: 'bar',
+    data: {
+        labels: data.busy_times.map(t => t.departure_time),
+        datasets: [{
+            label: 'Bookings',
+            data: data.busy_times.map(t => t.total_bookings),
+            backgroundColor: '#1a1a2e',
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+</script>
+
+{% endblock %}

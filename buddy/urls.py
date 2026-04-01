@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views import return_seat_page
+from buddy.views import dashboard_view
 
 urlpatterns = [
     path('', views.index, name="index"),   
@@ -23,5 +24,9 @@ urlpatterns = [
     path("payment/", views.payment_page, name="payment"),
     path("payment-success/", views.payment_success, name="payment-success"),
     path('api/fare-calculator', views.fare_calculator_api, name='fare-calculator'),
+    path("dashboard/", dashboard_view, name="dashboard"),
+    path("analytics/",      views.analytics_page, name="analytics"),
+    path("analytics/data/", views.analytics_data,  name="analytics_data"),
+    
 ]
     

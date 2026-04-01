@@ -1,0 +1,539 @@
+{% extends "buddy/base.html" %}
+{% block title %}Analytics Dashboard — RideReserve{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+  :root {
+    --navy:   #1a1a2e;
+    --gold:   #f0c040;
+    --gold2:  #e6a800;
+    --card:   #ffffff;
+    --bg:     #eef3ff;
+    --text:   #1a1a2e;
+    --muted:  #6b7280;
+    --border: #e2e8f0;
+    --green:  #22c55e;
+    --blue:   #3b82f6;
+    --purple: #a855f7;
+    --red:    #ef4444;
+  }
+
+  * { box-sizing: border-box; }
+
+  .dash-wrap {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 36px 40px 60px;
+  }
+
+  /* ── Header ── */
+  .dash-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .dash-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+  .dash-header h1 span { color: var(--gold2); }
+  .dash-header p { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+  .refresh-btn {
+    background: var(--navy);
+    color: var(--gold);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .refresh-btn:hover { opacity: 0.82; }
+
+  /* ── KPI Row ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 26px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 22px 24px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    border-radius: 14px 14px 0 0;
+  }
+  .kpi-card:nth-child(1)::before { background: var(--gold); }
+  .kpi-card:nth-child(2)::before { background: var(--blue); }
+  .kpi-card:nth-child(3)::before { background: var(--green); }
+  .kpi-card:nth-child(4)::before { background: var(--purple); }
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+
+  .kpi-icon { font-size: 28px; opacity: 0.13; position: absolute; right: 16px; top: 16px; }
+  .kpi-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.9px; color: var(--muted); margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px; font-weight: 800; color: var(--navy); line-height: 1;
+  }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Chart Grid ── */
+  .chart-grid { display: grid; gap: 22px; margin-bottom: 22px; }
+  .chart-grid-2 { grid-template-columns: 2fr 1fr; }
+  .chart-grid-equal { grid-template-columns: 1fr 1fr; }
+
+  .chart-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    animation: fadeUp 0.55s ease both;
+  }
+  .chart-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 700; color: var(--navy);
+    margin: 0 0 4px;
+  }
+  .chart-card p { font-size: 12px; color: var(--muted); margin: 0 0 18px; }
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap.tall { height: 280px; }
+  .chart-wrap.doughnut {
+    display: flex; align-items: center; justify-content: center; height: 280px;
+  }
+
+  /* ── Table Card ── */
+  .table-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 22px;
+    animation: fadeUp 0.6s ease both;
+    animation-delay: 0.45s;
+  }
+  .table-card h3 { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--navy); margin: 0 0 4px; }
+  .table-card p  { font-size: 12px; color: var(--muted); margin: 0 0 18px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted);
+    padding: 8px 14px; text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8faff; }
+  tbody td { padding: 12px 14px; font-size: 14px; color: var(--text); }
+
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--navy); color: var(--gold);
+    font-size: 11px; font-weight: 700; font-family: 'Syne', sans-serif;
+  }
+  .rank-badge.gold { background: var(--gold); color: var(--navy); }
+
+  .bar-mini {
+    height: 6px; border-radius: 4px; background: var(--gold);
+    opacity: 0.75; margin-top: 4px;
+  }
+
+  /* ── States ── */
+  .loading-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 100px 0; gap: 16px;
+    color: var(--muted); font-size: 15px;
+  }
+  .spinner {
+    width: 38px; height: 38px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  .error-state {
+    text-align: center; padding: 80px 0;
+    color: var(--red); font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+</style>
+
+<div class="dash-wrap">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <div>
+      <h1>Analytics <span>Dashboard</span></h1>
+      <p>Live data from AWS Glue · Last refreshed: <span id="last-refresh">—</span></p>
+    </div>
+    <!-- FIX: removed inline onclick — event listener attached in JS below -->
+    <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" id="loading">
+    <div class="spinner"></div>
+    <span>Fetching analytics from S3…</span>
+  </div>
+
+  <!-- Main content -->
+  <div id="dash-content" style="display:none;">
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-icon">🎫</div>
+        <div class="kpi-label">Total Bookings</div>
+        <div class="kpi-value" id="kpi-bookings">—</div>
+        <div class="kpi-sub">across all routes</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kpi-revenue">—</div>
+        <div class="kpi-sub">sum of final prices</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🛣️</div>
+        <div class="kpi-label">Top Routes</div>
+        <div class="kpi-value" id="kpi-routes">—</div>
+        <div class="kpi-sub">tracked this period</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🚗</div>
+        <div class="kpi-label">Car Types</div>
+        <div class="kpi-value" id="kpi-cartypes">—</div>
+        <div class="kpi-sub">vehicle categories</div>
+      </div>
+    </div>
+
+    <!-- Row 1: Revenue bar + Ticket type doughnut -->
+    <div class="chart-grid chart-grid-2">
+      <div class="chart-card">
+        <h3>Monthly Revenue</h3>
+        <p>Total revenue (€) aggregated by departure month</p>
+        <div class="chart-wrap tall"><canvas id="revenueChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Ticket Type Split</h3>
+        <p>One Way vs Return breakdown</p>
+        <div class="chart-wrap doughnut"><canvas id="ticketTypeChart" style="max-width:220px;max-height:220px;"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Car types + Busy times -->
+    <div class="chart-grid chart-grid-equal">
+      <div class="chart-card">
+        <h3>Car Type Popularity</h3>
+        <p>Total bookings per vehicle category</p>
+        <div class="chart-wrap"><canvas id="carTypeChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Busiest Departure Times</h3>
+        <p>Booking volume by scheduled departure time</p>
+        <div class="chart-wrap"><canvas id="busyTimesChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top Routes Table -->
+    <div class="table-card">
+      <h3>🏆 Top 5 Most Booked Routes</h3>
+      <p>Ranked by total booking count from Glue analytics job</p>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Route</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Bookings</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody id="routes-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /dash-content -->
+
+  <!-- Error -->
+  <div class="error-state" id="error-state" style="display:none;">
+    ⚠️ Could not load analytics data.<br>
+    <small style="color:var(--muted);margin-top:8px;display:block;">Check that the Glue job has run and S3 permissions are correct.</small>
+  </div>
+
+</div>
+
+<script>
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.color = "#6b7280";
+
+let _charts = {};
+
+function killCharts() {
+  Object.values(_charts).forEach(c => c && c.destroy());
+  _charts = {};
+}
+
+// FIX: helper to safely read the Django CSRF cookie
+// Django requires this header on all non-GET fetch requests
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? match[1] : "";
+}
+
+async function loadDashboard() {
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("dash-content").style.display = "none";
+  document.getElementById("error-state").style.display = "none";
+
+  try {
+    // FIX: pass CSRF token so Django does not reject the request
+    const res = await fetch("{% url 'analytics_data' %}", {
+      headers: { "X-CSRFToken": getCsrfToken() }
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById("last-refresh").textContent = new Date().toLocaleTimeString();
+    killCharts();
+    renderKPIs(data);
+
+    // FIX: filter out null/empty months before rendering
+    const cleanRevenue = (data.revenue || []).filter(r => r.month && r.total_revenue != null);
+    renderRevenue(cleanRevenue);
+
+    renderTicketType(data.ticket_types || []);
+    renderCarTypes(data.car_types || []);
+    renderBusyTimes(data.busy_times || []);
+    renderRoutesTable(data.top_routes || []);
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("dash-content").style.display = "block";
+  } catch (err) {
+    console.error(err);
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("error-state").style.display = "block";
+  }
+}
+
+function renderKPIs(data) {
+  const totalBookings = (data.top_routes || []).reduce((s, r) => s + (r.total_bookings || 0), 0);
+  const totalRevenue  = (data.revenue || []).reduce((s, r) => s + (r.total_revenue || 0), 0);
+  document.getElementById("kpi-bookings").textContent  = totalBookings.toLocaleString();
+  document.getElementById("kpi-revenue").textContent   = "€" + totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0});
+  document.getElementById("kpi-routes").textContent    = (data.top_routes || []).length;
+  document.getElementById("kpi-cartypes").textContent  = (data.car_types || []).length;
+}
+
+function renderRevenue(revenue) {
+  const ctx = document.getElementById("revenueChart").getContext("2d");
+  _charts.revenue = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: revenue.map(r => r.month),
+      datasets: [{
+        label: "Revenue (€)",
+        data: revenue.map(r => r.total_revenue),
+        backgroundColor: "#f0c040",
+        hoverBackgroundColor: "#e6a800",
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          grid: { color: "#f1f5f9" },
+          ticks: { callback: v => "€" + v.toLocaleString() }
+        }
+      }
+    }
+  });
+}
+
+function renderTicketType(types) {
+  const ctx = document.getElementById("ticketTypeChart").getContext("2d");
+  _charts.ticketType = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: types.map(t => t.ticket_type),
+      datasets: [{
+        data: types.map(t => t.count),
+        backgroundColor: ["#1a1a2e", "#f0c040"],
+        hoverOffset: 8,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: "66%",
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 }
+        }
+      }
+    }
+  });
+}
+
+function renderCarTypes(cars) {
+  const ctx = document.getElementById("carTypeChart").getContext("2d");
+  const palette = ["#1a1a2e","#f0c040","#3b82f6","#22c55e","#a855f7","#ef4444","#f97316"];
+  _charts.carType = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: cars.map(c => c.car_type),
+      datasets: [{
+        label: "Bookings",
+        data: cars.map(c => c.total_bookings),
+        backgroundColor: cars.map((_, i) => palette[i % palette.length]),
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: "#f1f5f9" }, beginAtZero: true },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderBusyTimes(times) {
+  const ctx = document.getElementById("busyTimesChart").getContext("2d");
+  const sorted = [...times].sort((a, b) => a.departure_time.localeCompare(b.departure_time));
+  _charts.busyTimes = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: sorted.map(t => t.departure_time),
+      datasets: [{
+        label: "Bookings",
+        data: sorted.map(t => t.total_bookings),
+        borderColor: "#1a1a2e",
+        backgroundColor: "rgba(26,26,46,0.07)",
+        borderWidth: 2.5,
+        pointBackgroundColor: "#f0c040",
+        pointBorderColor: "#1a1a2e",
+        pointRadius: 5,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: "#f1f5f9" }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// FIX: use DOM methods instead of innerHTML to prevent XSS
+// Never build HTML strings from server data — create elements safely instead
+function renderRoutesTable(routes) {
+  const max = Math.max(...routes.map(r => r.total_bookings), 1);
+  const tbody = document.getElementById("routes-tbody");
+  tbody.innerHTML = "";
+
+  routes.forEach((r, i) => {
+    const tr = document.createElement("tr");
+
+    // Rank badge
+    const tdRank = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "rank-badge" + (i === 0 ? " gold" : "");
+    badge.textContent = i + 1;
+    tdRank.appendChild(badge);
+
+    // Route (bold)
+    const tdRoute = document.createElement("td");
+    const strong = document.createElement("strong");
+    strong.textContent = `${r.source} → ${r.destination}`;
+    tdRoute.appendChild(strong);
+
+    // From
+    const tdFrom = document.createElement("td");
+    tdFrom.textContent = r.source;
+
+    // To
+    const tdTo = document.createElement("td");
+    tdTo.textContent = r.destination;
+
+    // Bookings (bold)
+    const tdBookings = document.createElement("td");
+    const strongB = document.createElement("strong");
+    strongB.textContent = (r.total_bookings || 0).toLocaleString();
+    tdBookings.appendChild(strongB);
+
+    // Share bar
+    const pct = Math.round((r.total_bookings / max) * 100);
+    const tdShare = document.createElement("td");
+    tdShare.style.minWidth = "130px";
+    const pctLabel = document.createElement("div");
+    pctLabel.style.cssText = "font-size:11px;color:var(--muted);margin-bottom:3px;";
+    pctLabel.textContent = pct + "%";
+    const bar = document.createElement("div");
+    bar.className = "bar-mini";
+    bar.style.width = pct + "%";
+    tdShare.appendChild(pctLabel);
+    tdShare.appendChild(bar);
+
+    tr.append(tdRank, tdRoute, tdFrom, tdTo, tdBookings, tdShare);
+    tbody.appendChild(tr);
+  });
+}
+
+// FIX: use addEventListener instead of inline onclick
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
+  loadDashboard();
+});
+</script>
+{% endblock %}

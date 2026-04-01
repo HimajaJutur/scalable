@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .cognito_auth import cognito_signup, cognito_confirm, cognito_login
 from .cognito_auth import (
-    cognito_signup, cognito_confirm, cognito_login,
-    cognito_forgot_password, cognito_confirm_new_password
+    cognito_signup,
+    cognito_confirm,
+    cognito_login,
+    cognito_forgot_password,
+    cognito_confirm_new_password
 )
 import json
 import urllib.request
@@ -12,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 import os
 import boto3
+from django.http import JsonResponse, HttpResponseServerError
 
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -23,8 +26,11 @@ seats_table = dynamo.Table("TicketBuddy_Seats")
 
 SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts"
 
-TAX_API_URL  = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
+TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
 FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator"
+
+BUCKET = "ticketbuddy-tickets-943886678148"
+KEY    = "analytics/dashboard.json"
 
 
 def get_lambda_client():
@@ -54,15 +60,21 @@ def fetch_fare(source, destination):
 def fetch_tax(price, country_code="IE"):
     """Call the tax calculator API. Returns a safe fallback if the call fails."""
     try:
-        payload = json.dumps({"price": round(float(price), 2), "country_code": country_code}).encode()
+        payload = json.dumps({
+            "price": round(float(price), 2),
+            "country_code": country_code
+        }).encode()
+
         req = urllib.request.Request(
             TAX_API_URL,
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST"
         )
+
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.loads(resp.read())
+
     except Exception as e:
         print(f"Tax API error: {e}")
         return {
@@ -96,11 +108,14 @@ def register_view(request):
         email = request.POST["email"]
         password = request.POST["password"]
         res = cognito_signup(username, email, password)
+
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("register")
+
         request.session["pending_username"] = username
         return redirect("confirm")
+
     return render(request, "buddy/register.html")
 
 
@@ -109,11 +124,14 @@ def confirm_view(request):
         username = request.session.get("pending_username")
         code = request.POST["code"]
         res = cognito_confirm(username, code)
+
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("confirm")
+
         messages.success(request, "Account confirmed! Login now.")
         return redirect("login")
+
     return render(request, "buddy/confirm.html")
 
 
@@ -122,14 +140,17 @@ def login_view(request):
         username = request.POST["username"]
         password = request.POST["password"]
         res = cognito_login(username, password)
+
         if "error" in res:
             messages.error(request, res["error"])
             return render(request, "buddy/login.html")
+
         tokens = res["AuthenticationResult"]
         request.session["id_token"] = tokens["IdToken"]
         request.session["access_token"] = tokens["AccessToken"]
         request.session["username"] = username
         return redirect("index")
+
     return render(request, "buddy/login.html")
 
 
@@ -142,12 +163,15 @@ def forgot_password_view(request):
     if request.method == "POST":
         username = request.POST["username"]
         res = cognito_forgot_password(username)
+
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("forgot-password")
+
         request.session["reset_username"] = username
         messages.success(request, "OTP sent to your email.")
         return redirect("reset-password")
+
     return render(request, "buddy/forgot_password.html")
 
 
@@ -157,11 +181,14 @@ def reset_password_view(request):
         code = request.POST["code"]
         new_password = request.POST["password"]
         res = cognito_confirm_new_password(username, code, new_password)
+
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("reset-password")
+
         messages.success(request, "Password reset successful! You can now login.")
         return redirect("login")
+
     return render(request, "buddy/reset_password.html")
 
 
@@ -221,33 +248,34 @@ def book_ticket_page(request):
         )
 
     prefill = {
-        "from":           request.GET.get("from", ""),
-        "to":             request.GET.get("to", ""),
-        "route":          request.GET.get("route", ""),
-        "fare":           request.GET.get("fare", ""),
+        "from": request.GET.get("from", ""),
+        "to": request.GET.get("to", ""),
+        "route": request.GET.get("route", ""),
+        "fare": request.GET.get("fare", ""),
         "departure_time": request.GET.get("time", ""),
-        "arrival_time":   request.GET.get("arrival", ""),
-        "date":           request.GET.get("date", ""),
-        "return_date":    request.GET.get("return_date", ""),
-        "car_type":       request.GET.get("car_type", ""),
-        "driver_name":    request.GET.get("driver_name", ""),
-        "total_seats":    request.GET.get("total_seats", "4"),
+        "arrival_time": request.GET.get("arrival", ""),
+        "date": request.GET.get("date", ""),
+        "return_date": request.GET.get("return_date", ""),
+        "car_type": request.GET.get("car_type", ""),
+        "driver_name": request.GET.get("driver_name", ""),
+        "total_seats": request.GET.get("total_seats", "4"),
     }
 
     seats = []
     booked = []
+
     if prefill.get("route"):
         try:
             seat_resp = lambda_client.invoke(
                 FunctionName="TicketBuddy_GetSeatStatus",
                 InvocationType="RequestResponse",
                 Payload=json.dumps({
-                    "route_id":       prefill["route"],
+                    "route_id": prefill["route"],
                     "departure_time": prefill["departure_time"]
                 })
             )
             seat_result = json.loads(seat_resp["Payload"].read())
-            seats  = seat_result.get("seats", [])
+            seats = seat_result.get("seats", [])
             booked = seat_result.get("booked_seats", [])
         except Exception:
             total = int(float(prefill.get("total_seats") or 4))
@@ -255,8 +283,8 @@ def book_ticket_page(request):
 
     return render(request, "buddy/booking.html", {
         "prefill": prefill,
-        "seats":   seats,
-        "booked":  booked
+        "seats": seats,
+        "booked": booked
     })
 
 
@@ -269,13 +297,26 @@ def payment_page(request):
         pending_ret = None
 
     context = {
-        "from": "", "to": "", "date": "", "fare": 0, "seats": "",
-        "route": "", "departure_time": "", "arrival_time": "",
-        "ticket_type": "", "outbound_fare": 0, "return_fare": 0,
-        "total_fare": 0, "outbound_seats": "", "return_seats": "",
-        "outbound_route": "", "return_route": "",
-        "outbound_departure_time": "", "return_departure_time": "",
-        "outbound_arrival_time": "", "return_arrival_time": "",
+        "from": "",
+        "to": "",
+        "date": "",
+        "fare": 0,
+        "seats": "",
+        "route": "",
+        "departure_time": "",
+        "arrival_time": "",
+        "ticket_type": "",
+        "outbound_fare": 0,
+        "return_fare": 0,
+        "total_fare": 0,
+        "outbound_seats": "",
+        "return_seats": "",
+        "outbound_route": "",
+        "return_route": "",
+        "outbound_departure_time": "",
+        "return_departure_time": "",
+        "outbound_arrival_time": "",
+        "return_arrival_time": "",
     }
 
     if pending_out:
@@ -310,13 +351,13 @@ def history_page(request):
         InvocationType="RequestResponse",
         Payload=json.dumps({"username": username})
     )
-    result = json.loads(response['Payload'].read())
+    result = json.loads(response["Payload"].read())
     bookings = result.get("bookings", []) if result.get("status") == "success" else []
 
     def parse_date(d):
         try:
             return datetime.strptime(d, "%Y-%m-%d")
-        except:
+        except Exception:
             return datetime.min
 
     grouped = {}
@@ -355,6 +396,7 @@ def history_page(request):
         outbound = group["outbound"]
         if outbound.get("pdf_url"):
             outbound["pdf_url"] = get_presigned_url(outbound["pdf_url"])
+
         for r in group["returns"]:
             if r.get("pdf_url"):
                 r["pdf_url"] = get_presigned_url(r["pdf_url"])
@@ -402,7 +444,6 @@ def payment_success(request):
         messages.error(request, "Failed to lock outbound seats.")
         return redirect("book-ticket")
 
-    # ── Apply bulk discount ───────────────────────────────────────────────────
     try:
         from ticketdiscount.discount import apply_bulk_discount
     except Exception as e:
@@ -410,6 +451,7 @@ def payment_success(request):
         apply_bulk_discount = None
 
     seat_count = len(outbound_seats) or 0
+
     try:
         fare_per_seat = float(pending_out.get("fare", 0)) or 0.0
     except Exception:
@@ -427,7 +469,6 @@ def payment_success(request):
     if applied:
         messages.success(request, f"Bulk discount applied: €{discount_amount:.2f} off total.")
 
-    # ── Call Tax API for outbound ─────────────────────────────────────────────
     outbound_tax = fetch_tax(final_per_seat_fare * seat_count)
 
     book_payload_out = {
@@ -439,8 +480,8 @@ def payment_success(request):
         "ticket_type": pending_out.get("ticket_type"),
         "seats": outbound_seats,
         "fare": final_per_seat_fare,
-        "tax_rate":    outbound_tax.get("tax_rate", 0),
-        "tax_amount":  round(outbound_tax.get("tax_amount", 0.0), 2),
+        "tax_rate": outbound_tax.get("tax_rate", 0),
+        "tax_amount": round(outbound_tax.get("tax_amount", 0.0), 2),
         "final_price": round(outbound_tax.get("final_price", final_per_seat_fare * seat_count), 2),
         "route": outbound_route,
         "departure_time": pending_out.get("departure_time"),
@@ -467,8 +508,8 @@ def payment_success(request):
         return redirect("book-ticket")
 
     outbound_item = result["item"]
-    outbound_item["tax_rate"]    = book_payload_out["tax_rate"]
-    outbound_item["tax_amount"]  = book_payload_out["tax_amount"]
+    outbound_item["tax_rate"] = book_payload_out["tax_rate"]
+    outbound_item["tax_amount"] = book_payload_out["tax_amount"]
     outbound_item["final_price"] = book_payload_out["final_price"]
     outbound_id = outbound_item["booking_id"]
 
@@ -513,7 +554,6 @@ def payment_success(request):
     except Exception:
         pass
 
-    # ── Return booking ────────────────────────────────────────────────────────
     if pending_ret:
         return_seats = pending_ret.get("seats", [])
         return_route = pending_ret.get("route")
@@ -558,8 +598,8 @@ def payment_success(request):
                 "ticket_type": "Return",
                 "seats": return_seats,
                 "fare": pending_ret.get("fare"),
-                "tax_rate":    return_tax.get("tax_rate", 0),
-                "tax_amount":  round(return_tax.get("tax_amount", 0.0), 2),
+                "tax_rate": return_tax.get("tax_rate", 0),
+                "tax_amount": round(return_tax.get("tax_amount", 0.0), 2),
                 "final_price": round(return_tax.get("final_price", return_fare_raw), 2),
                 "route": return_route,
                 "departure_time": pending_ret.get("departure_time"),
@@ -584,8 +624,8 @@ def payment_success(request):
                 return_item = result_ret["item"]
                 return_id = return_item["booking_id"]
 
-                return_item["tax_rate"]    = book_payload_ret["tax_rate"]
-                return_item["tax_amount"]  = book_payload_ret["tax_amount"]
+                return_item["tax_rate"] = book_payload_ret["tax_rate"]
+                return_item["tax_amount"] = book_payload_ret["tax_amount"]
                 return_item["final_price"] = book_payload_ret["final_price"]
 
                 try:
@@ -647,9 +687,11 @@ def cancel_ticket(request, booking_id):
         Payload=json.dumps({"booking_id": booking_id})
     )
     result = json.loads(response["Payload"].read())
+
     if result.get("status") != "success":
         messages.error(request, "Failed to cancel ticket.")
         return redirect("history")
+
     messages.success(request, "Ticket cancelled successfully.")
     return redirect("history")
 
@@ -661,9 +703,9 @@ def schedules_page(request):
     return_date = request.GET.get("return_date", "")
 
     if request.method == "POST":
-        source      = request.POST.get("from")
+        source = request.POST.get("from")
         destination = request.POST.get("to")
-        date        = request.POST.get("date")
+        date = request.POST.get("date")
         return_date = request.POST.get("return_date", "")
 
         response = lambda_client.invoke(
@@ -674,12 +716,11 @@ def schedules_page(request):
         result = json.loads(response["Payload"].read())
         schedules = json.loads(result.get("body", "[]"))
 
-        # Override fare on every schedule with live API fare
         fare_cache = {}
         for s in schedules:
-            src  = s.get("source", "")
+            src = s.get("source", "")
             dest = s.get("destination", "")
-            key  = (src, dest)
+            key = (src, dest)
             if key not in fare_cache:
                 fare_cache[key] = fetch_fare(src, dest)
             live_fare = fare_cache[key]
@@ -687,8 +728,8 @@ def schedules_page(request):
                 s["fare"] = live_fare
 
     return render(request, "buddy/schedules.html", {
-        "schedules":   schedules,
-        "date":        date,
+        "schedules": schedules,
+        "date": date,
         "return_date": return_date,
     })
 
@@ -696,6 +737,7 @@ def schedules_page(request):
 def select_seat_page(request):
     lambda_client = get_lambda_client()
     route_id = request.GET.get("route")
+
     response = lambda_client.invoke(
         FunctionName="TicketBuddy_GetSeats",
         InvocationType="RequestResponse",
@@ -704,6 +746,7 @@ def select_seat_page(request):
     result = json.loads(response["Payload"].read())
     seats = result.get("seats", [])
     seats = [s for s in seats if s.get("seat_no") not in ["A1", "Seat 1"]]
+
     return render(request, "buddy/select_seat.html", {
         "route_id": route_id,
         "seats": seats
@@ -723,9 +766,9 @@ def destinations_page(request):
 
     fare_cache = {}
     for s in schedules:
-        src  = s.get("source", "")
+        src = s.get("source", "")
         dest = s.get("destination", "")
-        key  = (src, dest)
+        key = (src, dest)
         if key not in fare_cache:
             fare_cache[key] = fetch_fare(src, dest)
         live_fare = fare_cache[key]
@@ -733,12 +776,12 @@ def destinations_page(request):
             s["fare"] = live_fare
 
     city_coords = {
-        "Dublin":    {"lat": 53.3498, "lng": -6.2603},
-        "Cork":      {"lat": 51.8985, "lng": -8.4756},
-        "Galway":    {"lat": 53.2707, "lng": -9.0568},
-        "Limerick":  {"lat": 52.6638, "lng": -8.6267},
+        "Dublin": {"lat": 53.3498, "lng": -6.2603},
+        "Cork": {"lat": 51.8985, "lng": -8.4756},
+        "Galway": {"lat": 53.2707, "lng": -9.0568},
+        "Limerick": {"lat": 52.6638, "lng": -8.6267},
         "Waterford": {"lat": 52.2593, "lng": -7.1101},
-        "Belfast":   {"lat": 54.5973, "lng": -5.9301},
+        "Belfast": {"lat": 54.5973, "lng": -5.9301},
     }
 
     return render(request, "buddy/destinations.html", {
@@ -794,6 +837,7 @@ def return_seat_page(request):
 
     seats = []
     booked = []
+
     if prefill["route"]:
         try:
             lambda_client = get_lambda_client()
@@ -801,12 +845,12 @@ def return_seat_page(request):
                 FunctionName="TicketBuddy_GetSeatStatus",
                 InvocationType="RequestResponse",
                 Payload=json.dumps({
-                    "route_id":       prefill["route"],
+                    "route_id": prefill["route"],
                     "departure_time": prefill["departure_time"]
                 })
             )
             seat_result = json.loads(seat_resp["Payload"].read())
-            seats  = seat_result.get("seats", [])
+            seats = seat_result.get("seats", [])
             booked = seat_result.get("booked_seats", [])
         except Exception:
             total = int(float(request.GET.get("total_seats", 4)))
@@ -814,34 +858,42 @@ def return_seat_page(request):
 
     return render(request, "buddy/return_seat.html", {
         "prefill": prefill,
-        "seats":   seats,
-        "booked":  booked
+        "seats": seats,
+        "booked": booked
     })
 
 
 def fare_calculator_api(request):
     import math
-    from django.http import JsonResponse
 
     CITY_COORDS = {
-        "Dublin":    {"lat": 53.3498, "lng": -6.2603},
-        "Cork":      {"lat": 51.8985, "lng": -8.4756},
-        "Galway":    {"lat": 53.2707, "lng": -9.0568},
-        "Limerick":  {"lat": 52.6638, "lng": -8.6267},
+        "Dublin": {"lat": 53.3498, "lng": -6.2603},
+        "Cork": {"lat": 51.8985, "lng": -8.4756},
+        "Galway": {"lat": 53.2707, "lng": -9.0568},
+        "Limerick": {"lat": 52.6638, "lng": -8.6267},
         "Waterford": {"lat": 52.2593, "lng": -7.1101},
-        "Belfast":   {"lat": 54.5973, "lng": -5.9301},
+        "Belfast": {"lat": 54.5973, "lng": -5.9301},
     }
 
     RATE_PER_KM = 0.10
-    source      = request.GET.get("from", "").strip().title()
+    source = request.GET.get("from", "").strip().title()
     destination = request.GET.get("to", "").strip().title()
 
     if not source or not destination:
         return JsonResponse({"error": "Missing 'from' or 'to' parameter"}, status=400)
+
     if source not in CITY_COORDS:
-        return JsonResponse({"error": f"City '{source}' not supported", "supported_cities": list(CITY_COORDS.keys())}, status=400)
+        return JsonResponse({
+            "error": f"City '{source}' not supported",
+            "supported_cities": list(CITY_COORDS.keys())
+        }, status=400)
+
     if destination not in CITY_COORDS:
-        return JsonResponse({"error": f"City '{destination}' not supported", "supported_cities": list(CITY_COORDS.keys())}, status=400)
+        return JsonResponse({
+            "error": f"City '{destination}' not supported",
+            "supported_cities": list(CITY_COORDS.keys())
+        }, status=400)
+
     if source == destination:
         return JsonResponse({"error": "Source and destination cannot be the same"}, status=400)
 
@@ -849,26 +901,71 @@ def fare_calculator_api(request):
         R = 6371
         d_lat = math.radians(lat2 - lat1)
         d_lng = math.radians(lng2 - lng1)
-        a = (math.sin(d_lat/2)**2 +
-             math.cos(math.radians(lat1)) *
-             math.cos(math.radians(lat2)) *
-             math.sin(d_lng/2)**2)
-        return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
+        a = (
+            math.sin(d_lat / 2) ** 2 +
+            math.cos(math.radians(lat1)) *
+            math.cos(math.radians(lat2)) *
+            math.sin(d_lng / 2) ** 2
+        )
+        return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
     c1 = CITY_COORDS[source]
     c2 = CITY_COORDS[destination]
     distance_km = haversine(c1["lat"], c1["lng"], c2["lat"], c2["lng"])
-    fare        = round(distance_km * RATE_PER_KM, 2)
-    total_mins  = int((distance_km / 100) * 60)
-    duration    = f"{total_mins//60}h {total_mins%60}mins" if total_mins >= 60 else f"{total_mins}mins"
+    fare = round(distance_km * RATE_PER_KM, 2)
+    total_mins = int((distance_km / 100) * 60)
+    duration = f"{total_mins//60}h {total_mins%60}mins" if total_mins >= 60 else f"{total_mins}mins"
 
     return JsonResponse({
-        "from":              source,
-        "to":                destination,
-        "distance_km":       distance_km,
+        "from": source,
+        "to": destination,
+        "distance_km": distance_km,
         "duration_estimate": duration,
-        "rate_per_km":       f"€{RATE_PER_KM}",
-        "delivery_fee":      f"€{fare}",
-        "fare_raw":          fare,
-        "powered_by":        "RideReserve Distance & Fare Calculator API"
+        "rate_per_km": f"€{RATE_PER_KM}",
+        "delivery_fee": f"€{fare}",
+        "fare_raw": fare,
+        "powered_by": "RideReserve Distance & Fare Calculator API"
     })
+
+
+def dashboard_view(request):
+    s3_client = boto3.client("s3", region_name=AWS_REGION)
+    try:
+        obj = s3_client.get_object(
+            Bucket=BUCKET,
+            Key=KEY
+        )
+        analytics = json.loads(obj["Body"].read())
+    except Exception as e:
+        print(f"Dashboard error: {e}")
+        analytics = {
+            "top_routes": [],
+            "car_types": [],
+            "revenue": [],
+            "ticket_types": [],
+            "busy_times": [],
+        }
+
+    return render(request, "buddy/dashboard.html", {
+        "analytics_json": json.dumps(analytics)
+    })
+
+
+# ── Analytics Dashboard ───────────────────────────────────────────────────────
+def analytics_page(request):
+    """Render the analytics dashboard page."""
+    return render(request, "buddy/analytics.html")
+
+
+def analytics_data(request):
+    """Fetch dashboard.json from S3 and return to browser as JSON."""
+    try:
+        s3  = boto3.client("s3", region_name=AWS_REGION)
+        obj = s3.get_object(Bucket=BUCKET, Key=KEY)
+        data = json.loads(obj["Body"].read().decode("utf-8"))
+        return JsonResponse(data)
+    except Exception as e:
+        return HttpResponseServerError(
+            json.dumps({"error": str(e)}),
+            content_type="application/json"
+        )

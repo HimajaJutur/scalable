@@ -899,3 +899,29 @@ def return_seat_page(request):
         "prefill": prefill,
         "booked": booked
     })
+import json
+import boto3
+from django.http import JsonResponse, HttpResponseServerError
+
+BUCKET = "ticketbuddy-tickets-943886678148"
+KEY    = "analytics/dashboard.json"
+
+
+@login_required(login_url='/login/')
+def analytics_page(request):
+    """Render the analytics dashboard page."""
+    return render(request, "buddy/analytics.html")
+
+
+@login_required(login_url='/login/')
+def analytics_data(request):
+    try:
+        s3   = boto3.client("s3")
+        obj  = s3.get_object(Bucket=BUCKET, Key=KEY)
+        data = json.loads(obj["Body"].read().decode("utf-8"))
+        return JsonResponse(data)
+    except Exception as e:
+        return HttpResponseServerError(
+            json.dumps({"error": str(e)}),
+            content_type="application/json"
+        )
