@@ -14,8 +14,8 @@ from datetime import datetime
 from decimal import Decimal
 import os
 import boto3
+import time
 from django.http import JsonResponse, HttpResponseServerError
-
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
@@ -32,6 +32,40 @@ FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare
 BUCKET = "ticketbuddy-tickets-943886678148"
 KEY    = "analytics/dashboard.json"
 
+
+
+GLUE_JOB_NAME = "RideReserveAnalyticsJob"
+
+def trigger_glue_job():
+    glue = boto3.client("glue", region_name=AWS_REGION)
+
+    response = glue.start_job_run(JobName=GLUE_JOB_NAME)
+    return response["JobRunId"]
+    
+    
+
+def wait_for_glue(job_run_id, timeout=300):
+    glue = boto3.client("glue", region_name=AWS_REGION)
+
+    start = time.time()
+
+    while True:
+        response = glue.get_job_run(
+            JobName=GLUE_JOB_NAME,
+            RunId=job_run_id
+        )
+
+        status = response["JobRun"]["JobRunState"]
+
+        if status == "SUCCEEDED":
+            return True
+        elif status in ["FAILED", "STOPPED", "TIMEOUT"]:
+            raise Exception(f"Glue job failed: {status}")
+
+        if time.time() - start > timeout:
+            raise Exception("Glue job timeout")
+
+        time.sleep(5)  # poll every 5 sec
 
 def get_lambda_client():
     return boto3.client("lambda", region_name="us-east-1")
@@ -958,12 +992,21 @@ def analytics_page(request):
 
 
 def analytics_data(request):
-    """Fetch dashboard.json from S3 and return to browser as JSON."""
     try:
-        s3  = boto3.client("s3", region_name=AWS_REGION)
+        # 1. Trigger Glue job
+        job_run_id = trigger_glue_job()
+
+        # 2. Wait until it completes
+        wait_for_glue(job_run_id)
+
+        # 3. Fetch latest data from S3
+        s3 = boto3.client("s3", region_name=AWS_REGION)
         obj = s3.get_object(Bucket=BUCKET, Key=KEY)
+
         data = json.loads(obj["Body"].read().decode("utf-8"))
+
         return JsonResponse(data)
+
     except Exception as e:
         return HttpResponseServerError(
             json.dumps({"error": str(e)}),
