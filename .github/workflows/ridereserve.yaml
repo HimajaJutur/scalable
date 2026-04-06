@@ -39,11 +39,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ridereserve-app-zip
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
