@@ -30,7 +30,6 @@
     padding: 36px 40px 60px;
   }
 
-  /* ── Header ── */
   .dash-header {
     display: flex;
     align-items: flex-end;
@@ -61,8 +60,8 @@
     transition: opacity 0.2s;
   }
   .refresh-btn:hover { opacity: 0.82; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* ── KPI Row ── */
   .kpi-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -106,7 +105,6 @@
   }
   .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-  /* ── Chart Grid ── */
   .chart-grid { display: grid; gap: 22px; margin-bottom: 22px; }
   .chart-grid-2 { grid-template-columns: 2fr 1fr; }
   .chart-grid-equal { grid-template-columns: 1fr 1fr; }
@@ -131,7 +129,6 @@
     display: flex; align-items: center; justify-content: center; height: 280px;
   }
 
-  /* ── Table Card ── */
   .table-card {
     background: var(--card);
     border-radius: 14px;
@@ -170,11 +167,18 @@
     opacity: 0.75; margin-top: 4px;
   }
 
-  /* ── States ── */
+  /* ── Loading state with status message ── */
   .loading-state {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 100px 0; gap: 16px;
     color: var(--muted); font-size: 15px;
+  }
+  .loading-status {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    min-height: 20px;
+    transition: opacity 0.3s;
   }
   .spinner {
     width: 38px; height: 38px;
@@ -195,26 +199,23 @@
 
 <div class="dash-wrap">
 
-  <!-- Header -->
   <div class="dash-header">
     <div>
       <h1>Analytics <span>Dashboard</span></h1>
       <p>Live data from AWS Glue · Last refreshed: <span id="last-refresh">—</span></p>
     </div>
-    <!-- FIX: removed inline onclick — event listener attached in JS below -->
     <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
   </div>
 
-  <!-- Loading -->
+  <!-- Loading — now shows what step we're on -->
   <div class="loading-state" id="loading">
     <div class="spinner"></div>
-    <span>Fetching analytics from S3…</span>
+    <span id="loading-msg">Starting Glue job…</span>
+    <div class="loading-status" id="loading-status"></div>
   </div>
 
-  <!-- Main content -->
   <div id="dash-content" style="display:none;">
 
-    <!-- KPIs -->
     <div class="kpi-row">
       <div class="kpi-card">
         <div class="kpi-icon">🎫</div>
@@ -242,7 +243,6 @@
       </div>
     </div>
 
-    <!-- Row 1: Revenue bar + Ticket type doughnut -->
     <div class="chart-grid chart-grid-2">
       <div class="chart-card">
         <h3>Monthly Revenue</h3>
@@ -256,7 +256,6 @@
       </div>
     </div>
 
-    <!-- Row 2: Car types + Busy times -->
     <div class="chart-grid chart-grid-equal">
       <div class="chart-card">
         <h3>Car Type Popularity</h3>
@@ -270,7 +269,6 @@
       </div>
     </div>
 
-    <!-- Top Routes Table -->
     <div class="table-card">
       <h3>🏆 Top 5 Most Booked Routes</h3>
       <p>Ranked by total booking count from Glue analytics job</p>
@@ -289,12 +287,11 @@
       </table>
     </div>
 
-  </div><!-- /dash-content -->
+  </div>
 
-  <!-- Error -->
   <div class="error-state" id="error-state" style="display:none;">
     ⚠️ Could not load analytics data.<br>
-    <small style="color:var(--muted);margin-top:8px;display:block;">Check that the Glue job has run and S3 permissions are correct.</small>
+    <small id="error-detail" style="color:var(--muted);margin-top:8px;display:block;"></small>
   </div>
 
 </div>
@@ -310,35 +307,92 @@ function killCharts() {
   _charts = {};
 }
 
-// FIX: helper to safely read the Django CSRF cookie
-// Django requires this header on all non-GET fetch requests
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
   return match ? match[1] : "";
 }
 
+function setLoading(msg, status) {
+  document.getElementById("loading-msg").textContent = msg;
+  document.getElementById("loading-status").textContent = status || "";
+}
+
+function showError(msg) {
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("dash-content").style.display = "none";
+  document.getElementById("error-state").style.display = "block";
+  document.getElementById("error-detail").textContent = msg || "";
+}
+
+const POLL_INTERVAL_MS = 5000;
+const TERMINAL_STATES  = ["SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"];
+
 async function loadDashboard() {
+  // Reset UI
+  document.getElementById("refresh-btn").disabled = true;
   document.getElementById("loading").style.display = "flex";
   document.getElementById("dash-content").style.display = "none";
   document.getElementById("error-state").style.display = "none";
+  killCharts();
 
   try {
-    // FIX: pass CSRF token so Django does not reject the request
-    const res = await fetch("{% url 'analytics_data' %}", {
+    // ── Step 1: Trigger the Glue job ─────────────────────────────────────────
+    setLoading("Starting Glue job…", "This may take a minute or two");
+    const triggerResp = await fetch("{% url 'analytics-trigger' %}", {
       headers: { "X-CSRFToken": getCsrfToken() }
     });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+    if (!triggerResp.ok) throw new Error("Trigger failed: HTTP " + triggerResp.status);
+
+    const triggerData = await triggerResp.json();
+    if (triggerData.error) throw new Error(triggerData.error);
+
+    const jobRunId = triggerData.job_run_id;
+    if (!jobRunId) throw new Error("No job_run_id returned from trigger endpoint");
+
+    // ── Step 2: Poll for completion ──────────────────────────────────────────
+    let pollCount = 0;
+    let jobStatus = "STARTING";
+
+    while (!TERMINAL_STATES.includes(jobStatus)) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      pollCount++;
+
+      setLoading(
+        "Glue job running…",
+        `Status: ${jobStatus} · checked ${pollCount} time${pollCount === 1 ? "" : "s"}`
+      );
+
+      const statusResp = await fetch(
+        `{% url 'analytics-status' '00000000' %}`.replace("00000000", encodeURIComponent(jobRunId)),
+        { headers: { "X-CSRFToken": getCsrfToken() } }
+      );
+      if (!statusResp.ok) throw new Error("Status check failed: HTTP " + statusResp.status);
+
+      const statusData = await statusResp.json();
+      if (statusData.error) throw new Error(statusData.error);
+      jobStatus = statusData.status;
+    }
+
+    if (jobStatus !== "SUCCEEDED") {
+      throw new Error(`Glue job ended with status: ${jobStatus}`);
+    }
+
+    // ── Step 3: Fetch the analytics data from S3 ─────────────────────────────
+    setLoading("Fetching analytics from S3…", "");
+    const dataResp = await fetch("{% url 'analytics_data' %}", {
+      headers: { "X-CSRFToken": getCsrfToken() }
+    });
+    if (!dataResp.ok) throw new Error("Data fetch failed: HTTP " + dataResp.status);
+
+    const data = await dataResp.json();
     if (data.error) throw new Error(data.error);
 
+    // ── Step 4: Render ───────────────────────────────────────────────────────
     document.getElementById("last-refresh").textContent = new Date().toLocaleTimeString();
-    killCharts();
     renderKPIs(data);
 
-    // FIX: filter out null/empty months before rendering
     const cleanRevenue = (data.revenue || []).filter(r => r.month && r.total_revenue != null);
     renderRevenue(cleanRevenue);
-
     renderTicketType(data.ticket_types || []);
     renderCarTypes(data.car_types || []);
     renderBusyTimes(data.busy_times || []);
@@ -346,12 +400,16 @@ async function loadDashboard() {
 
     document.getElementById("loading").style.display = "none";
     document.getElementById("dash-content").style.display = "block";
+
   } catch (err) {
     console.error(err);
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("error-state").style.display = "block";
+    showError(err.message);
+  } finally {
+    document.getElementById("refresh-btn").disabled = false;
   }
 }
+
+// ── Chart renderers (unchanged from original) ────────────────────────────────
 
 function renderKPIs(data) {
   const totalBookings = (data.top_routes || []).reduce((s, r) => s + (r.total_bookings || 0), 0);
@@ -382,10 +440,7 @@ function renderRevenue(revenue) {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false } },
-        y: {
-          grid: { color: "#f1f5f9" },
-          ticks: { callback: v => "€" + v.toLocaleString() }
-        }
+        y: { grid: { color: "#f1f5f9" }, ticks: { callback: v => "€" + v.toLocaleString() } }
       }
     }
   });
@@ -408,10 +463,7 @@ function renderTicketType(types) {
       responsive: true, maintainAspectRatio: false,
       cutout: "66%",
       plugins: {
-        legend: {
-          position: "bottom",
-          labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 }
-        }
+        legend: { position: "bottom", labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } }
       }
     }
   });
@@ -475,8 +527,6 @@ function renderBusyTimes(times) {
   });
 }
 
-// FIX: use DOM methods instead of innerHTML to prevent XSS
-// Never build HTML strings from server data — create elements safely instead
 function renderRoutesTable(routes) {
   const max = Math.max(...routes.map(r => r.total_bookings), 1);
   const tbody = document.getElementById("routes-tbody");
@@ -485,34 +535,28 @@ function renderRoutesTable(routes) {
   routes.forEach((r, i) => {
     const tr = document.createElement("tr");
 
-    // Rank badge
     const tdRank = document.createElement("td");
     const badge = document.createElement("span");
     badge.className = "rank-badge" + (i === 0 ? " gold" : "");
     badge.textContent = i + 1;
     tdRank.appendChild(badge);
 
-    // Route (bold)
     const tdRoute = document.createElement("td");
     const strong = document.createElement("strong");
     strong.textContent = `${r.source} → ${r.destination}`;
     tdRoute.appendChild(strong);
 
-    // From
     const tdFrom = document.createElement("td");
     tdFrom.textContent = r.source;
 
-    // To
     const tdTo = document.createElement("td");
     tdTo.textContent = r.destination;
 
-    // Bookings (bold)
     const tdBookings = document.createElement("td");
     const strongB = document.createElement("strong");
     strongB.textContent = (r.total_bookings || 0).toLocaleString();
     tdBookings.appendChild(strongB);
 
-    // Share bar
     const pct = Math.round((r.total_bookings / max) * 100);
     const tdShare = document.createElement("td");
     tdShare.style.minWidth = "130px";
@@ -530,7 +574,6 @@ function renderRoutesTable(routes) {
   });
 }
 
-// FIX: use addEventListener instead of inline onclick
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
   loadDashboard();

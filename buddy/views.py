@@ -32,40 +32,14 @@ FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare
 BUCKET = "ticketbuddy-tickets-943886678148"
 KEY    = "analytics/dashboard.json"
 
-
-
 GLUE_JOB_NAME = "RideReserveAnalyticsJob"
+
 
 def trigger_glue_job():
     glue = boto3.client("glue", region_name=AWS_REGION)
-
     response = glue.start_job_run(JobName=GLUE_JOB_NAME)
     return response["JobRunId"]
-    
-    
 
-def wait_for_glue(job_run_id, timeout=300):
-    glue = boto3.client("glue", region_name=AWS_REGION)
-
-    start = time.time()
-
-    while True:
-        response = glue.get_job_run(
-            JobName=GLUE_JOB_NAME,
-            RunId=job_run_id
-        )
-
-        status = response["JobRun"]["JobRunState"]
-
-        if status == "SUCCEEDED":
-            return True
-        elif status in ["FAILED", "STOPPED", "TIMEOUT"]:
-            raise Exception(f"Glue job failed: {status}")
-
-        if time.time() - start > timeout:
-            raise Exception("Glue job timeout")
-
-        time.sleep(5)  # poll every 5 sec
 
 def get_lambda_client():
     return boto3.client("lambda", region_name="us-east-1")
@@ -73,7 +47,6 @@ def get_lambda_client():
 
 # ── Fare helper ───────────────────────────────────────────────────────────────
 def fetch_fare(source, destination):
-    """Call the RideReserve fare calculator API and return fare_raw."""
     try:
         payload = json.dumps({"from": source, "to": destination}).encode()
         req = urllib.request.Request(
@@ -92,7 +65,6 @@ def fetch_fare(source, destination):
 
 # ── Tax helper ────────────────────────────────────────────────────────────────
 def fetch_tax(price, country_code="IE"):
-    """Call the tax calculator API. Returns a safe fallback if the call fails."""
     try:
         payload = json.dumps({
             "price": round(float(price), 2),
@@ -430,7 +402,6 @@ def history_page(request):
         outbound = group["outbound"]
         if outbound.get("pdf_url"):
             outbound["pdf_url"] = get_presigned_url(outbound["pdf_url"])
-
         for r in group["returns"]:
             if r.get("pdf_url"):
                 r["pdf_url"] = get_presigned_url(r["pdf_url"])
@@ -965,10 +936,7 @@ def fare_calculator_api(request):
 def dashboard_view(request):
     s3_client = boto3.client("s3", region_name=AWS_REGION)
     try:
-        obj = s3_client.get_object(
-            Bucket=BUCKET,
-            Key=KEY
-        )
+        obj = s3_client.get_object(Bucket=BUCKET, Key=KEY)
         analytics = json.loads(obj["Body"].read())
     except Exception as e:
         print(f"Dashboard error: {e}")
@@ -985,28 +953,58 @@ def dashboard_view(request):
     })
 
 
-# ── Analytics Dashboard ───────────────────────────────────────────────────────
+# ── Analytics — async Glue pattern ───────────────────────────────────────────
+# Flow: browser calls /analytics/trigger/ → gets job_run_id
+#       browser polls  /analytics/status/<job_run_id>/ every 5s
+#       browser calls  /analytics/data/ once status == SUCCEEDED
+
 def analytics_page(request):
     """Render the analytics dashboard page."""
     return render(request, "buddy/analytics.html")
 
 
-def analytics_data(request):
+def analytics_trigger(request):
+    """
+    Start the Glue job and return the run ID immediately.
+    Never blocks — returns in milliseconds.
+    """
     try:
-        # 1. Trigger Glue job
         job_run_id = trigger_glue_job()
+        return JsonResponse({"status": "started", "job_run_id": job_run_id})
+    except Exception as e:
+        return HttpResponseServerError(
+            json.dumps({"error": str(e)}),
+            content_type="application/json"
+        )
 
-        # 2. Wait until it completes
-        wait_for_glue(job_run_id)
 
-        # 3. Fetch latest data from S3
+def analytics_status(request, job_run_id):
+    """
+    Check Glue job status with a single API call — no sleeping.
+    Returns one of: STARTING, RUNNING, SUCCEEDED, FAILED, STOPPED, TIMEOUT
+    """
+    try:
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        response = glue.get_job_run(JobName=GLUE_JOB_NAME, RunId=job_run_id)
+        status = response["JobRun"]["JobRunState"]
+        return JsonResponse({"status": status})
+    except Exception as e:
+        return HttpResponseServerError(
+            json.dumps({"error": str(e)}),
+            content_type="application/json"
+        )
+
+
+def analytics_data(request):
+    """
+    Read the latest analytics JSON from S3.
+    Only called by the browser after /analytics/status/ returns SUCCEEDED.
+    """
+    try:
         s3 = boto3.client("s3", region_name=AWS_REGION)
         obj = s3.get_object(Bucket=BUCKET, Key=KEY)
-
         data = json.loads(obj["Body"].read().decode("utf-8"))
-
         return JsonResponse(data)
-
     except Exception as e:
         return HttpResponseServerError(
             json.dumps({"error": str(e)}),

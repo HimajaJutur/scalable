@@ -27,6 +27,9 @@ urlpatterns = [
     path("dashboard/", dashboard_view, name="dashboard"),
     path("analytics/",      views.analytics_page, name="analytics"),
     path("analytics/data/", views.analytics_data,  name="analytics_data"),
+    path('analytics/trigger/', views.analytics_trigger, name='analytics-trigger'),
+    path('analytics/status/<str:job_run_id>/', views.analytics_status, name='analytics-status'),
+    path('analytics/data/', views.analytics_data, name='analytics-data'),
     
 ]
     
