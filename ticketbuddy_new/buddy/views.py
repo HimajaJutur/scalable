@@ -11,6 +11,7 @@ from decimal import Decimal
 import os
 import boto3
 from ticketdiscount.discount import apply_bulk_discount
+from django.contrib.auth.decorators import login_required
 
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -826,7 +827,7 @@ def contact_page(request):
 def return_seat_page(request):
 
 
- 
+    lambda_client = get_lambda_client()
     # POST → save pending return booking and redirect to payment
     
     if request.method == "POST":
