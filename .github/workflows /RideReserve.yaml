@@ -19,14 +19,13 @@ jobs:
 
       - name: Create deployment bundle
         run: |
-          cd ticketbuddy_new
           zip -r ../app.zip . \
             -x "env/*" "**/__pycache__/*" ".git/*" ".github/*" "*.pyc" "*.egg-info/*"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ticketbuddy-app-zip
+          name: ridereserve-app-zip
           path: ./app.zip
           retention-days: 5
 
@@ -43,7 +42,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: ticketbuddy-app-zip
+          name: ridereserve-app-zip
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -72,7 +71,6 @@ jobs:
 
       - name: Deploy to Elastic Beanstalk
         run: |
-          cd ticketbuddy_new
 
           eb init ${{ secrets.EB_APP_NAME }} \
             --region ${{ secrets.AWS_REGION }} \
