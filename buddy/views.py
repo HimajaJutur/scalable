@@ -302,6 +302,11 @@ def payment_page(request):
         request.session.pop("pending_return_booking", None)
         pending_ret = None
 
+    try:
+        from ticketdiscount.discount import apply_bulk_discount
+    except Exception:
+        apply_bulk_discount = None
+
     context = {
         "from": "",
         "to": "",
@@ -313,7 +318,17 @@ def payment_page(request):
         "arrival_time": "",
         "ticket_type": "",
         "outbound_fare": 0,
+        "outbound_fare_per_seat": 0,
+        "outbound_seat_count": 0,
+        "outbound_subtotal": 0,
+        "outbound_discount_applied": False,
+        "outbound_discount_amount": 0,
         "return_fare": 0,
+        "return_fare_per_seat": 0,
+        "return_seat_count": 0,
+        "return_subtotal": 0,
+        "return_discount_applied": False,
+        "return_discount_amount": 0,
         "total_fare": 0,
         "outbound_seats": "",
         "return_seats": "",
@@ -326,11 +341,30 @@ def payment_page(request):
     }
 
     if pending_out:
+        out_seats = pending_out.get("seats", [])
+        out_seat_count = len(out_seats) or 1
+        fare_per_seat_out = float(pending_out.get("fare") or 0)
+        outbound_subtotal = round(fare_per_seat_out * out_seat_count, 2)
+
+        out_discount_amount = 0.0
+        out_discount_applied = False
+        if apply_bulk_discount:
+            discounted, out_discount_amount, out_discount_applied = apply_bulk_discount(
+                outbound_subtotal, out_seat_count
+            )
+        else:
+            discounted = outbound_subtotal
+
         context["from"] = pending_out.get("from")
         context["to"] = pending_out.get("to")
         context["date"] = pending_out.get("departure_date")
-        context["outbound_fare"] = float(pending_out.get("fare") or 0)
-        context["outbound_seats"] = ", ".join(pending_out.get("seats", []))
+        context["outbound_fare_per_seat"] = fare_per_seat_out
+        context["outbound_seat_count"] = out_seat_count
+        context["outbound_subtotal"] = outbound_subtotal
+        context["outbound_discount_applied"] = out_discount_applied
+        context["outbound_discount_amount"] = round(out_discount_amount, 2)
+        context["outbound_fare"] = round(discounted, 2)
+        context["outbound_seats"] = ", ".join(out_seats)
         context["outbound_route"] = pending_out.get("route")
         context["outbound_departure_time"] = pending_out.get("departure_time")
         context["outbound_arrival_time"] = pending_out.get("arrival_time")
@@ -338,8 +372,27 @@ def payment_page(request):
         context["fare"] = context["outbound_fare"]
 
     if pending_ret and pending_out and pending_out.get("ticket_type") == "Return":
-        context["return_fare"] = float(pending_ret.get("fare") or 0)
-        context["return_seats"] = ", ".join(pending_ret.get("seats", []))
+        ret_seats = pending_ret.get("seats", [])
+        ret_seat_count = len(ret_seats) or 1
+        fare_per_seat_ret = float(pending_ret.get("fare") or 0)
+        return_subtotal = round(fare_per_seat_ret * ret_seat_count, 2)
+
+        ret_discount_amount = 0.0
+        ret_discount_applied = False
+        if apply_bulk_discount:
+            ret_discounted, ret_discount_amount, ret_discount_applied = apply_bulk_discount(
+                return_subtotal, ret_seat_count
+            )
+        else:
+            ret_discounted = return_subtotal
+
+        context["return_fare_per_seat"] = fare_per_seat_ret
+        context["return_seat_count"] = ret_seat_count
+        context["return_subtotal"] = return_subtotal
+        context["return_discount_applied"] = ret_discount_applied
+        context["return_discount_amount"] = round(ret_discount_amount, 2)
+        context["return_fare"] = round(ret_discounted, 2)
+        context["return_seats"] = ", ".join(ret_seats)
         context["return_route"] = pending_ret.get("route")
         context["return_departure_time"] = pending_ret.get("departure_time")
         context["return_arrival_time"] = pending_ret.get("arrival_time")

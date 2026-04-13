@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 def _d(x):
     return Decimal(str(x))
 
-def apply_bulk_discount(total_fare, seats_count, threshold=3, percent=10):
+def apply_bulk_discount(total_fare, seats_count, threshold=2, percent=10):
     """
     Apply 10% discount if seats > threshold.
     Returns: (new_total, discount_amount, applied)

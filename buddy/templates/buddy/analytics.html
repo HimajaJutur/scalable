@@ -64,7 +64,7 @@
 
   .kpi-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     margin-bottom: 26px;
   }
@@ -88,11 +88,9 @@
   .kpi-card:nth-child(1)::before { background: var(--gold); }
   .kpi-card:nth-child(2)::before { background: var(--blue); }
   .kpi-card:nth-child(3)::before { background: var(--green); }
-  .kpi-card:nth-child(4)::before { background: var(--purple); }
   .kpi-card:nth-child(1) { animation-delay: 0.05s; }
   .kpi-card:nth-child(2) { animation-delay: 0.10s; }
   .kpi-card:nth-child(3) { animation-delay: 0.15s; }
-  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
 
   .kpi-icon { font-size: 28px; opacity: 0.13; position: absolute; right: 16px; top: 16px; }
   .kpi-label {
@@ -107,7 +105,7 @@
 
   .chart-grid { display: grid; gap: 22px; margin-bottom: 22px; }
   .chart-grid-2 { grid-template-columns: 2fr 1fr; }
-  .chart-grid-equal { grid-template-columns: 1fr 1fr; }
+  .chart-grid-full { grid-template-columns: 1fr; }
 
   .chart-card {
     background: var(--card);
@@ -167,7 +165,6 @@
     opacity: 0.75; margin-top: 4px;
   }
 
-  /* ── Loading state with status message ── */
   .loading-state {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 100px 0; gap: 16px;
@@ -207,7 +204,6 @@
     <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
   </div>
 
-  <!-- Loading — now shows what step we're on -->
   <div class="loading-state" id="loading">
     <div class="spinner"></div>
     <span id="loading-msg">Starting Glue job…</span>
@@ -235,12 +231,6 @@
         <div class="kpi-value" id="kpi-routes">—</div>
         <div class="kpi-sub">tracked this period</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">🚗</div>
-        <div class="kpi-label">Car Types</div>
-        <div class="kpi-value" id="kpi-cartypes">—</div>
-        <div class="kpi-sub">vehicle categories</div>
-      </div>
     </div>
 
     <div class="chart-grid chart-grid-2">
@@ -256,12 +246,7 @@
       </div>
     </div>
 
-    <div class="chart-grid chart-grid-equal">
-      <div class="chart-card">
-        <h3>Car Type Popularity</h3>
-        <p>Total bookings per vehicle category</p>
-        <div class="chart-wrap"><canvas id="carTypeChart"></canvas></div>
-      </div>
+    <div class="chart-grid chart-grid-full">
       <div class="chart-card">
         <h3>Busiest Departure Times</h3>
         <p>Booking volume by scheduled departure time</p>
@@ -328,7 +313,6 @@ const POLL_INTERVAL_MS = 5000;
 const TERMINAL_STATES  = ["SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"];
 
 async function loadDashboard() {
-  // Reset UI
   document.getElementById("refresh-btn").disabled = true;
   document.getElementById("loading").style.display = "flex";
   document.getElementById("dash-content").style.display = "none";
@@ -336,7 +320,6 @@ async function loadDashboard() {
   killCharts();
 
   try {
-    // ── Step 1: Trigger the Glue job ─────────────────────────────────────────
     setLoading("Starting Glue job…", "This may take a minute or two");
     const triggerResp = await fetch("{% url 'analytics-trigger' %}", {
       headers: { "X-CSRFToken": getCsrfToken() }
@@ -349,7 +332,6 @@ async function loadDashboard() {
     const jobRunId = triggerData.job_run_id;
     if (!jobRunId) throw new Error("No job_run_id returned from trigger endpoint");
 
-    // ── Step 2: Poll for completion ──────────────────────────────────────────
     let pollCount = 0;
     let jobStatus = "STARTING";
 
@@ -377,7 +359,6 @@ async function loadDashboard() {
       throw new Error(`Glue job ended with status: ${jobStatus}`);
     }
 
-    // ── Step 3: Fetch the analytics data from S3 ─────────────────────────────
     setLoading("Fetching analytics from S3…", "");
     const dataResp = await fetch("{% url 'analytics_data' %}", {
       headers: { "X-CSRFToken": getCsrfToken() }
@@ -387,14 +368,12 @@ async function loadDashboard() {
     const data = await dataResp.json();
     if (data.error) throw new Error(data.error);
 
-    // ── Step 4: Render ───────────────────────────────────────────────────────
     document.getElementById("last-refresh").textContent = new Date().toLocaleTimeString();
     renderKPIs(data);
 
     const cleanRevenue = (data.revenue || []).filter(r => r.month && r.total_revenue != null);
     renderRevenue(cleanRevenue);
     renderTicketType(data.ticket_types || []);
-    renderCarTypes(data.car_types || []);
     renderBusyTimes(data.busy_times || []);
     renderRoutesTable(data.top_routes || []);
 
@@ -409,15 +388,12 @@ async function loadDashboard() {
   }
 }
 
-// ── Chart renderers (unchanged from original) ────────────────────────────────
-
 function renderKPIs(data) {
   const totalBookings = (data.top_routes || []).reduce((s, r) => s + (r.total_bookings || 0), 0);
   const totalRevenue  = (data.revenue || []).reduce((s, r) => s + (r.total_revenue || 0), 0);
-  document.getElementById("kpi-bookings").textContent  = totalBookings.toLocaleString();
-  document.getElementById("kpi-revenue").textContent   = "€" + totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0});
-  document.getElementById("kpi-routes").textContent    = (data.top_routes || []).length;
-  document.getElementById("kpi-cartypes").textContent  = (data.car_types || []).length;
+  document.getElementById("kpi-bookings").textContent = totalBookings.toLocaleString();
+  document.getElementById("kpi-revenue").textContent  = "€" + totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0});
+  document.getElementById("kpi-routes").textContent   = (data.top_routes || []).length;
 }
 
 function renderRevenue(revenue) {
@@ -464,33 +440,6 @@ function renderTicketType(types) {
       cutout: "66%",
       plugins: {
         legend: { position: "bottom", labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } }
-      }
-    }
-  });
-}
-
-function renderCarTypes(cars) {
-  const ctx = document.getElementById("carTypeChart").getContext("2d");
-  const palette = ["#1a1a2e","#f0c040","#3b82f6","#22c55e","#a855f7","#ef4444","#f97316"];
-  _charts.carType = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: cars.map(c => c.car_type),
-      datasets: [{
-        label: "Bookings",
-        data: cars.map(c => c.total_bookings),
-        backgroundColor: cars.map((_, i) => palette[i % palette.length]),
-        borderRadius: 5,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      indexAxis: "y",
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: "#f1f5f9" }, beginAtZero: true },
-        y: { grid: { display: false } }
       }
     }
   });
