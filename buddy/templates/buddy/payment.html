@@ -12,7 +12,8 @@
     <p style="margin:4px 0;"><b>Date:</b> {{ date }}</p>
     <p style="margin:4px 0;"><b>Departure:</b> {{ outbound_departure_time }} &nbsp;|&nbsp; <b>Arrival:</b> {{ outbound_arrival_time }}</p>
     <p style="margin:4px 0;"><b>Seats:</b> {{ outbound_seats }}</p>
-    <p style="margin:4px 0;"><b>Base Fare:</b> €{{ outbound_fare }}</p>
+    <p style="margin:4px 0;"><b>Fare per Seat:</b> €{{ outbound_fare_per_seat }}</p>
+    <p style="margin:4px 0;"><b>Seats × Fare:</b> {{ outbound_seat_count }} × €{{ outbound_fare_per_seat }} = €{{ outbound_fare }}</p>
     <p style="margin:4px 0;"><b>VAT (<span id="outbound-tax-rate">...</span>%):</b> €<span id="outbound-tax-amount">...</span></p>
     <p style="margin:4px 0;"><b>Fare incl. VAT:</b> €<span id="outbound-final">...</span></p>
   </div>
@@ -23,7 +24,8 @@
     <p style="margin:4px 0;"><b>From:</b> {{ to }} → <b>{{ from }}</b></p>
     <p style="margin:4px 0;"><b>Departure:</b> {{ return_departure_time }} &nbsp;|&nbsp; <b>Arrival:</b> {{ return_arrival_time }}</p>
     <p style="margin:4px 0;"><b>Seats:</b> {{ return_seats }}</p>
-    <p style="margin:4px 0;"><b>Base Fare:</b> €{{ return_fare }}</p>
+    <p style="margin:4px 0;"><b>Fare per Seat:</b> €{{ return_fare_per_seat }}</p>
+    <p style="margin:4px 0;"><b>Seats × Fare:</b> {{ return_seat_count }} × €{{ return_fare_per_seat }} = €{{ return_fare }}</p>
     <p style="margin:4px 0;"><b>VAT (<span id="return-tax-rate">...</span>%):</b> €<span id="return-tax-amount">...</span></p>
     <p style="margin:4px 0;"><b>Fare incl. VAT:</b> €<span id="return-final">...</span></p>
   </div>
@@ -167,6 +169,7 @@
 <script>
   const TAX_API = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
 
+  // These are already the TOTAL fares (per_seat × seat_count), calculated in the view
   const outboundFare = parseFloat("{{ outbound_fare }}") || 0;
   const returnFare   = parseFloat("{{ return_fare }}")   || 0;
   const hasReturn    = returnFare > 0;
@@ -182,7 +185,7 @@
 
   async function loadTaxes() {
     try {
-      // Fetch tax for outbound fare
+      // outboundFare is already fare_per_seat × seat_count from the view
       const outbound = await fetchTax(outboundFare);
       document.getElementById("outbound-tax-rate").textContent   = outbound.tax_rate;
       document.getElementById("outbound-tax-amount").textContent = outbound.tax_amount.toFixed(2);
@@ -190,7 +193,6 @@
 
       let grandTotal = outbound.final_price;
 
-      // Fetch tax for return fare if present
       if (hasReturn) {
         const ret = await fetchTax(returnFare);
         document.getElementById("return-tax-rate").textContent   = ret.tax_rate;
@@ -201,17 +203,14 @@
 
       const totalStr = grandTotal.toFixed(2);
 
-      // Update all total displays
       document.getElementById("grand-total").textContent        = totalStr;
       document.getElementById("card-total-display").textContent = totalStr;
       document.getElementById("qr-total-display").textContent   = totalStr;
       document.getElementById("qr-amount-display").textContent  = totalStr;
 
-      // Populate hidden form fields
       document.getElementById("hidden-total").value    = totalStr;
       document.getElementById("qr-hidden-total").value = totalStr;
 
-      // Update QR code image with real total
       const qrData = encodeURIComponent(
         "RideReserve Payment | Amount: \u20ac" + totalStr +
         " | From: {{ from }} | To: {{ to }} | Date: {{ date }}"
