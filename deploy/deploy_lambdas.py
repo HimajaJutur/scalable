@@ -3,7 +3,7 @@ import os
 import zipfile
 import botocore.exceptions
 
-LAMBDA_ROLE = "arn:aws:iam::943886678149:role/LabRole"
+LAMBDA_ROLE = "arn:aws:iam::085848612043:role/LabRole"
 LAMBDA_DIR = "../lambda_deploy"
 
 FUNCTIONS = {

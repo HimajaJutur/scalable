@@ -1,5 +1,5 @@
 
 AWS_REGION = "us-east-1"
-USER_POOL_ID = "us-east-1_dYQquiTIK"
-CLIENT_ID = "2u1ttujpv7325pnbm987dbl8pf"
-CLIENT_SECRET = "1kph5eqpdro4q7rbjouv1uned7cd58dskkoohcsrcs7pset026nf"
+USER_POOL_ID = "us-east-1_68lXc80vw"
+CLIENT_ID = "17fcoinfl75utv625ek0olf8qs"
+CLIENT_SECRET = "ds0eoeuit3h6a0mg93us533fg283m19v955gcbve82q7mt676es"
