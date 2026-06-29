@@ -29,7 +29,7 @@ SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts"
 TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
 FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator"
 
-BUCKET = "ticketbuddy-tickets-943886678148"
+BUCKET = "ticketbuddy-tickets-943886678141"
 KEY    = "analytics/dashboard.json"
 
 GLUE_JOB_NAME = "RideReserveAnalyticsJob"
@@ -43,6 +43,37 @@ def trigger_glue_job():
 
 def get_lambda_client():
     return boto3.client("lambda", region_name="us-east-1")
+
+
+# ── Lambda body parser helper ─────────────────────────────────────────────────
+def parse_lambda_body(result):
+    """
+    Safely parse the body from a direct Lambda invocation response.
+    Lambda always returns {"statusCode": ..., "body": <json string or list>}.
+    Handles: body as JSON string, body already a list, error status codes.
+    Returns a list of dicts, or an empty list on any failure.
+    """
+    if not isinstance(result, dict):
+        return []
+
+    status_code = result.get("statusCode", 500)
+    if status_code != 200:
+        return []
+
+    body = result.get("body", [])
+
+    if isinstance(body, list):
+        items = body
+    elif isinstance(body, str):
+        try:
+            items = json.loads(body)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    else:
+        return []
+
+    # Guard: each item must be a dict; skip anything else
+    return [item for item in items if isinstance(item, dict)]
 
 
 # ── Fare helper ───────────────────────────────────────────────────────────────
@@ -280,6 +311,7 @@ def book_ticket_page(request):
                     "departure_time": prefill["departure_time"]
                 })
             )
+            print("Lambda response:", seat_resp)
             seat_result = json.loads(seat_resp["Payload"].read())
             seats = seat_result.get("seats", [])
             booked = seat_result.get("booked_seats", [])
@@ -370,6 +402,9 @@ def payment_page(request):
         context["outbound_arrival_time"] = pending_out.get("arrival_time")
         context["ticket_type"] = pending_out.get("ticket_type")
         context["fare"] = context["outbound_fare"]
+        context["route"] = pending_out.get("route")
+        context["departure_time"] = pending_out.get("departure_time")
+        context["arrival_time"] = pending_out.get("arrival_time")
 
     if pending_ret and pending_out and pending_out.get("ticket_type") == "Return":
         ret_seats = pending_ret.get("seats", [])
@@ -463,6 +498,15 @@ def history_page(request):
 
 
 def payment_success(request):
+    print("\n========== PAYMENT SUCCESS ==========")
+
+    print("GET PARAMS:", dict(request.GET))
+
+    print("PENDING BOOKING:", request.session.get("pending_booking"))
+
+    print("PENDING RETURN:", request.session.get("pending_return_booking"))
+
+    print("=====================================\n")
     lambda_client = get_lambda_client()
     pending_out = request.session.get("pending_booking")
     pending_ret = request.session.get("pending_return_booking")
@@ -479,27 +523,45 @@ def payment_success(request):
         messages.error(request, "Missing outbound route or seats.")
         return redirect("book-ticket")
 
+    import traceback
+
     try:
         seat_payload_out = {
             "route_id": outbound_route,
             "departure_time": pending_out.get("departure_time"),
             "seats": outbound_seats
         }
+    
+        print("\n========== UPDATE SEAT ==========")
+        print(json.dumps(seat_payload_out, indent=4))
+    
         seat_resp = lambda_client.invoke(
             FunctionName="TicketBuddy_UpdateSeat",
             InvocationType="RequestResponse",
             Payload=json.dumps(seat_payload_out)
         )
-        seat_result = json.loads(seat_resp["Payload"].read())
-
+    
+        raw = seat_resp["Payload"].read().decode()
+    
+        print("RAW LAMBDA RESPONSE")
+        print(raw)
+    
+        seat_result = json.loads(raw)
+    
+        print("PARSED RESPONSE")
+        print(seat_result)
+    
         if seat_result.get("status") != "success":
-            messages.error(request, seat_result.get("message"))
+            print("Seat update failed.")
+            messages.error(request, str(seat_result))
             return redirect("book-ticket")
-
+    
         outbound_seat_booking_id = seat_result.get("booking_id")
-
-    except Exception:
-        messages.error(request, "Failed to lock outbound seats.")
+    
+    except Exception as e:
+        traceback.print_exc()
+        print("Seat update exception:", e)
+        messages.error(request, str(e))
         return redirect("book-ticket")
 
     try:
@@ -550,19 +612,32 @@ def payment_success(request):
         book_payload_out["booking_id"] = outbound_seat_booking_id
 
     try:
+
+        print("\n========== BOOK TICKET ==========")
+        print(json.dumps(book_payload_out, indent=4))
+    
         resp = lambda_client.invoke(
             FunctionName="TicketBuddy_BookTicket",
             InvocationType="RequestResponse",
             Payload=json.dumps(book_payload_out)
         )
-        result = json.loads(resp["Payload"].read())
-
+    
+        raw = resp["Payload"].read().decode()
+    
+        print("BOOK LAMBDA RESPONSE")
+        print(raw)
+    
+        result = json.loads(raw)
+    
         if result.get("status") != "success":
-            messages.error(request, f"Error: {result}")
+            print(result)
+            messages.error(request, str(result))
             return redirect("book-ticket")
-
-    except Exception:
-        messages.error(request, "Outbound booking failed.")
+    
+    except Exception as e:
+        traceback.print_exc()
+        print(e)
+        messages.error(request, str(e))
         return redirect("book-ticket")
 
     outbound_item = result["item"]
@@ -771,8 +846,9 @@ def schedules_page(request):
             InvocationType="RequestResponse",
             Payload=json.dumps({"from": source, "to": destination})
         )
+
         result = json.loads(response["Payload"].read())
-        schedules = json.loads(result.get("body", "[]"))
+        schedules = parse_lambda_body(result)
 
         fare_cache = {}
         for s in schedules:
@@ -820,7 +896,8 @@ def destinations_page(request):
         Payload=json.dumps({})
     )
     result = json.loads(response["Payload"].read())
-    schedules = json.loads(result.get("body", "[]"))
+    # FIX: was json.loads(result.get("body", "[]")) — same double-parse bug
+    schedules = parse_lambda_body(result)
 
     fare_cache = {}
     for s in schedules:
@@ -1007,10 +1084,6 @@ def dashboard_view(request):
 
 
 # ── Analytics — async Glue pattern ───────────────────────────────────────────
-# Flow: browser calls /analytics/trigger/ → gets job_run_id
-#       browser polls  /analytics/status/<job_run_id>/ every 5s
-#       browser calls  /analytics/data/ once status == SUCCEEDED
-
 def analytics_page(request):
     """Render the analytics dashboard page."""
     return render(request, "buddy/analytics.html")

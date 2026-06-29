@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 import qrcode
 from PIL import Image
 
-BUCKET_NAME = "ticketbuddy-tickets-943886678149"
+BUCKET_NAME = "ticketbuddy-tickets-943886678141"
 s3 = boto3.client("s3")
 
 

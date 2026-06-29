@@ -10,7 +10,7 @@ import os
 VIEWS_PATH    = "buddy/views.py"
 URLS_PATH     = "buddy/urls.py"
 TEMPLATE_PATH = "buddy/templates/buddy/dashboard.html"
-BUCKET_NAME   = "ticketbuddy-tickets-943886678148"
+BUCKET_NAME   = "ticketbuddy-tickets-943886678141"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Patch views.py
@@ -21,7 +21,7 @@ def dashboard_view(request):
     """Reads latest analytics JSON from S3 and renders the dashboard."""
     import boto3, json, os
     AWS_REGION  = os.getenv("AWS_REGION", "us-east-1")
-    BUCKET_NAME = "ticketbuddy-tickets-943886678148"
+    BUCKET_NAME = "ticketbuddy-tickets-943886678141"
     s3 = boto3.client("s3", region_name=AWS_REGION)
     try:
         obj       = s3.get_object(Bucket=BUCKET_NAME, Key="analytics/dashboard.json")

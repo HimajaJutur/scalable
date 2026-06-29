@@ -1,18 +1,32 @@
 import boto3
 
-dynamo = boto3.client("dynamodb")
+dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 
-response = dynamo.create_table(
+table = dynamodb.create_table(
     TableName="TicketBuddy_Seats",
     KeySchema=[
-        {"AttributeName": "route_id", "KeyType": "HASH"},
-        {"AttributeName": "seat_id", "KeyType": "RANGE"},
+        {
+            "AttributeName": "route_id",
+            "KeyType": "HASH"
+        },
+        {
+            "AttributeName": "departure_time_seat",
+            "KeyType": "RANGE"
+        }
     ],
     AttributeDefinitions=[
-        {"AttributeName": "route_id", "AttributeType": "S"},
-        {"AttributeName": "seat_id", "AttributeType": "S"},
+        {
+            "AttributeName": "route_id",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "departure_time_seat",
+            "AttributeType": "S"
+        }
     ],
     BillingMode="PAY_PER_REQUEST"
 )
 
-print("Table creation started:", response["TableDescription"]["TableStatus"])
+print("Creating table...")
+table.wait_until_exists()
+print("Table created successfully!")

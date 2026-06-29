@@ -1,6 +1,6 @@
 import boto3
 
-BUCKET_NAME = "ticketbuddy-tickets-943886678149" 
+BUCKET_NAME = "ticketbuddy-tickets-943886678141" 
 s3 = boto3.client("s3")
 
 def create_bucket():

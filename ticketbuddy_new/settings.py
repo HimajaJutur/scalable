@@ -28,7 +28,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://ffe0e53e6a7c4e2c83e7e128953e0e98.vfs.cloud9.us-east-1.amazonaws.com",
+    "https://b2b34c0fd7534e138a2890e1b8b21ed3.vfs.cloud9.us-east-1.amazonaws.com",
 ]
 # Application definition
 

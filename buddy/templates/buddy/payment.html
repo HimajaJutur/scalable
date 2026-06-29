@@ -167,64 +167,159 @@
 </div>
 
 <script>
-  const TAX_API = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
+   // Ireland VAT (23%)
 
-  // These are already the TOTAL fares (per_seat × seat_count), calculated in the view
+  const VAT_RATE = 23;
+
+  // These are already TOTAL fares (fare × seats)
+
   const outboundFare = parseFloat("{{ outbound_fare }}") || 0;
-  const returnFare   = parseFloat("{{ return_fare }}")   || 0;
+
+  const returnFare   = parseFloat("{{ return_fare }}") || 0;
+
   const hasReturn    = returnFare > 0;
 
-  async function fetchTax(price) {
-    const response = await fetch(TAX_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price: price, country_code: "IE" })
-    });
-    return await response.json();
+  function calculateTax(price) {
+
+      const taxAmount = price * (VAT_RATE / 100);
+
+      const finalPrice = price + taxAmount;
+
+      return {
+
+          tax_rate: VAT_RATE,
+
+          tax_amount: taxAmount,
+
+          final_price: finalPrice
+
+      };
+
   }
 
-  async function loadTaxes() {
-    try {
-      // outboundFare is already fare_per_seat × seat_count from the view
-      const outbound = await fetchTax(outboundFare);
-      document.getElementById("outbound-tax-rate").textContent   = outbound.tax_rate;
-      document.getElementById("outbound-tax-amount").textContent = outbound.tax_amount.toFixed(2);
-      document.getElementById("outbound-final").textContent      = outbound.final_price.toFixed(2);
+  function loadTaxes() {
+
+      // Outbound Journey
+
+      const outbound = calculateTax(outboundFare);
+
+      document.getElementById("outbound-tax-rate").textContent =
+
+          outbound.tax_rate;
+
+      document.getElementById("outbound-tax-amount").textContent =
+
+          outbound.tax_amount.toFixed(2);
+
+      document.getElementById("outbound-final").textContent =
+
+          outbound.final_price.toFixed(2);
 
       let grandTotal = outbound.final_price;
 
+      // Return Journey
+
       if (hasReturn) {
-        const ret = await fetchTax(returnFare);
-        document.getElementById("return-tax-rate").textContent   = ret.tax_rate;
-        document.getElementById("return-tax-amount").textContent = ret.tax_amount.toFixed(2);
-        document.getElementById("return-final").textContent      = ret.final_price.toFixed(2);
-        grandTotal += ret.final_price;
+
+          const ret = calculateTax(returnFare);
+
+          document.getElementById("return-tax-rate").textContent =
+
+              ret.tax_rate;
+
+          document.getElementById("return-tax-amount").textContent =
+
+              ret.tax_amount.toFixed(2);
+
+          document.getElementById("return-final").textContent =
+
+              ret.final_price.toFixed(2);
+
+          grandTotal += ret.final_price;
+
       }
 
-      const totalStr = grandTotal.toFixed(2);
+      const total = grandTotal.toFixed(2);
 
-      document.getElementById("grand-total").textContent        = totalStr;
-      document.getElementById("card-total-display").textContent = totalStr;
-      document.getElementById("qr-total-display").textContent   = totalStr;
-      document.getElementById("qr-amount-display").textContent  = totalStr;
+      document.getElementById("grand-total").textContent = total;
 
-      document.getElementById("hidden-total").value    = totalStr;
-      document.getElementById("qr-hidden-total").value = totalStr;
+      document.getElementById("card-total-display").textContent = total;
+
+      document.getElementById("qr-total-display").textContent = total;
+
+      document.getElementById("qr-amount-display").textContent = total;
+
+      document.getElementById("hidden-total").value = total;
+
+      document.getElementById("qr-hidden-total").value = total;
+
+      // Generate QR Code
 
       const qrData = encodeURIComponent(
-        "RideReserve Payment | Amount: \u20ac" + totalStr +
-        " | From: {{ from }} | To: {{ to }} | Date: {{ date }}"
-      );
-      document.getElementById("qr-img").src =
-        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrData;
 
-    } catch (err) {
-      console.error("Tax API error:", err);
-      document.getElementById("grand-total").textContent = "Error";
-    }
+          "RideReserve Payment | Amount: €" + total +
+
+          " | From: {{ from }}" +
+
+          " | To: {{ to }}" +
+
+          " | Date: {{ date }}"
+
+      );
+
+      document.getElementById("qr-img").src =
+
+          "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrData;
+
   }
 
   loadTaxes();
+
+  function showPayment(method) {
+
+      document.getElementById("method-selection").style.display = "none";
+
+      document.getElementById("card-payment").style.display =
+
+          method === "card" ? "block" : "none";
+
+      document.getElementById("qr-payment").style.display =
+
+          method === "qr" ? "block" : "none";
+
+  }
+
+  function resetMethod() {
+
+      document.getElementById("method-selection").style.display = "block";
+
+      document.getElementById("card-payment").style.display = "none";
+
+      document.getElementById("qr-payment").style.display = "none";
+
+  }
+
+  function formatCard(input) {
+
+      let val = input.value.replace(/\D/g, "").substring(0, 16);
+
+      input.value = val.replace(/(.{4})/g, "$1 ").trim();
+
+  }
+
+  function formatExpiry(input) {
+
+      let val = input.value.replace(/\D/g, "").substring(0, 4);
+
+      if (val.length >= 2) {
+
+          val = val.substring(0, 2) + "/" + val.substring(2);
+
+      }
+
+      input.value = val;
+
+  }
 
   function showPayment(method) {
     document.getElementById("method-selection").style.display = "none";

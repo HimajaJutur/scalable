@@ -904,7 +904,7 @@ import json
 import boto3
 from django.http import JsonResponse, HttpResponseServerError
 
-BUCKET = "ticketbuddy-tickets-943886678148"
+BUCKET = "ticketbuddy-tickets-943886678141"
 KEY    = "analytics/dashboard.json"
 
 

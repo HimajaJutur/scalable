@@ -10,7 +10,7 @@ import json
 import time
 
 AWS_REGION   = "us-east-1"
-BUCKET_NAME  = "ticketbuddy-tickets-943886678148"
+BUCKET_NAME  = "ticketbuddy-tickets-943886678141"
 GLUE_SCRIPT  = "analytics/glue_job.py"
 JOB_NAME     = "RideReserveAnalyticsJob"
 TRIGGER_NAME = "RideReserveHourlyTrigger"
