@@ -29,7 +29,7 @@ def create_cognito_pool():
     app_client = client.create_user_pool_client(
         UserPoolId=user_pool_id,
         ClientName="TicketBuddyAppClient",
-        GenerateSecret=True,
+        GenerateSecret=false,
         ExplicitAuthFlows=[
             "ALLOW_USER_PASSWORD_AUTH",
             "ALLOW_REFRESH_TOKEN_AUTH"
