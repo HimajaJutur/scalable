@@ -59,7 +59,8 @@
   <!-- Step 2a: Card Payment Form -->
   <div id="card-payment" style="display:none; margin-top:25px;">
     <h3 style="color:#1a1a2e;">💳 Enter Card Details</h3>
-    <form method="GET" action="/payment-success/">
+    <form method="POST" action="/payment-success/" onsubmit="lockSubmit(this)">
+      {% csrf_token %}
       <input type="hidden" name="method" value="CARD">
       <input type="hidden" name="from" value="{{ from }}">
       <input type="hidden" name="to" value="{{ to }}">
@@ -140,7 +141,8 @@
       Once you have completed payment in your banking app, click below to confirm your booking.
     </p>
 
-    <form method="GET" action="/payment-success/">
+    <form method="POST" action="/payment-success/" onsubmit="lockSubmit(this)">
+      {% csrf_token %}
       <input type="hidden" name="method" value="QR">
       <input type="hidden" name="from" value="{{ from }}">
       <input type="hidden" name="to" value="{{ to }}">
@@ -167,158 +169,71 @@
 </div>
 
 <script>
-   // Ireland VAT (23%)
-
+  // Ireland VAT (23%)
   const VAT_RATE = 23;
 
   // These are already TOTAL fares (fare × seats)
-
   const outboundFare = parseFloat("{{ outbound_fare }}") || 0;
-
   const returnFare   = parseFloat("{{ return_fare }}") || 0;
-
   const hasReturn    = returnFare > 0;
 
   function calculateTax(price) {
-
-      const taxAmount = price * (VAT_RATE / 100);
-
-      const finalPrice = price + taxAmount;
-
-      return {
-
-          tax_rate: VAT_RATE,
-
-          tax_amount: taxAmount,
-
-          final_price: finalPrice
-
-      };
-
+    const taxAmount = price * (VAT_RATE / 100);
+    const finalPrice = price + taxAmount;
+    return {
+      tax_rate: VAT_RATE,
+      tax_amount: taxAmount,
+      final_price: finalPrice
+    };
   }
 
   function loadTaxes() {
+    // Outbound Journey
+    const outbound = calculateTax(outboundFare);
+    document.getElementById("outbound-tax-rate").textContent = outbound.tax_rate;
+    document.getElementById("outbound-tax-amount").textContent = outbound.tax_amount.toFixed(2);
+    document.getElementById("outbound-final").textContent = outbound.final_price.toFixed(2);
 
-      // Outbound Journey
+    let grandTotal = outbound.final_price;
 
-      const outbound = calculateTax(outboundFare);
+    // Return Journey
+    if (hasReturn) {
+      const ret = calculateTax(returnFare);
+      document.getElementById("return-tax-rate").textContent = ret.tax_rate;
+      document.getElementById("return-tax-amount").textContent = ret.tax_amount.toFixed(2);
+      document.getElementById("return-final").textContent = ret.final_price.toFixed(2);
+      grandTotal += ret.final_price;
+    }
 
-      document.getElementById("outbound-tax-rate").textContent =
+    const total = grandTotal.toFixed(2);
+    document.getElementById("grand-total").textContent = total;
+    document.getElementById("card-total-display").textContent = total;
+    document.getElementById("qr-total-display").textContent = total;
+    document.getElementById("qr-amount-display").textContent = total;
+    document.getElementById("hidden-total").value = total;
+    document.getElementById("qr-hidden-total").value = total;
 
-          outbound.tax_rate;
-
-      document.getElementById("outbound-tax-amount").textContent =
-
-          outbound.tax_amount.toFixed(2);
-
-      document.getElementById("outbound-final").textContent =
-
-          outbound.final_price.toFixed(2);
-
-      let grandTotal = outbound.final_price;
-
-      // Return Journey
-
-      if (hasReturn) {
-
-          const ret = calculateTax(returnFare);
-
-          document.getElementById("return-tax-rate").textContent =
-
-              ret.tax_rate;
-
-          document.getElementById("return-tax-amount").textContent =
-
-              ret.tax_amount.toFixed(2);
-
-          document.getElementById("return-final").textContent =
-
-              ret.final_price.toFixed(2);
-
-          grandTotal += ret.final_price;
-
-      }
-
-      const total = grandTotal.toFixed(2);
-
-      document.getElementById("grand-total").textContent = total;
-
-      document.getElementById("card-total-display").textContent = total;
-
-      document.getElementById("qr-total-display").textContent = total;
-
-      document.getElementById("qr-amount-display").textContent = total;
-
-      document.getElementById("hidden-total").value = total;
-
-      document.getElementById("qr-hidden-total").value = total;
-
-      // Generate QR Code
-
-      const qrData = encodeURIComponent(
-
-          "RideReserve Payment | Amount: €" + total +
-
-          " | From: {{ from }}" +
-
-          " | To: {{ to }}" +
-
-          " | Date: {{ date }}"
-
-      );
-
-      document.getElementById("qr-img").src =
-
-          "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrData;
-
+    // Generate QR Code
+    const qrData = encodeURIComponent(
+      "RideReserve Payment | Amount: €" + total +
+      " | From: {{ from }}" +
+      " | To: {{ to }}" +
+      " | Date: {{ date }}"
+    );
+    document.getElementById("qr-img").src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrData;
   }
 
   loadTaxes();
 
-  function showPayment(method) {
-
-      document.getElementById("method-selection").style.display = "none";
-
-      document.getElementById("card-payment").style.display =
-
-          method === "card" ? "block" : "none";
-
-      document.getElementById("qr-payment").style.display =
-
-          method === "qr" ? "block" : "none";
-
-  }
-
-  function resetMethod() {
-
-      document.getElementById("method-selection").style.display = "block";
-
-      document.getElementById("card-payment").style.display = "none";
-
-      document.getElementById("qr-payment").style.display = "none";
-
-  }
-
-  function formatCard(input) {
-
-      let val = input.value.replace(/\D/g, "").substring(0, 16);
-
-      input.value = val.replace(/(.{4})/g, "$1 ").trim();
-
-  }
-
-  function formatExpiry(input) {
-
-      let val = input.value.replace(/\D/g, "").substring(0, 4);
-
-      if (val.length >= 2) {
-
-          val = val.substring(0, 2) + "/" + val.substring(2);
-
-      }
-
-      input.value = val;
-
+  // Prevent double submission: disable the button as soon as the form submits.
+  function lockSubmit(form) {
+    const btn = form.querySelector("button[type=submit]");
+    if (btn) {
+      btn.disabled = true;
+      btn.style.opacity = "0.6";
+      btn.textContent = "Processing…";
+    }
   }
 
   function showPayment(method) {
