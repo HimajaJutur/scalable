@@ -132,3 +132,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 LOGIN_URL = '/login/'
+
+# Sessions stored in signed cookies — no database table needed.
+# Sqlite on Elastic Beanstalk is ephemeral and owned by root after deploys,
+# so DB-backed sessions break; application data lives in DynamoDB anyway.
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
