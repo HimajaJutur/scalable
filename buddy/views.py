@@ -319,7 +319,8 @@ def book_ticket_page(request):
                 InvocationType="RequestResponse",
                 Payload=json.dumps({
                     "route_id": prefill["route"],
-                    "departure_time": prefill["departure_time"]
+                    "departure_time": prefill["departure_time"],
+                    "departure_date": prefill["date"],          
                 })
             )
             print("Lambda response:", seat_resp)
@@ -540,6 +541,7 @@ def payment_success(request):
         seat_payload_out = {
             "route_id": outbound_route,
             "departure_time": pending_out.get("departure_time"),
+            "departure_date": pending_out.get("departure_date"),   # NEW
             "seats": outbound_seats
         }
     
@@ -707,6 +709,7 @@ def payment_success(request):
                 seat_payload_ret = {
                     "route_id": return_route,
                     "departure_time": pending_ret.get("departure_time"),
+                    "departure_date": pending_ret.get("departure_date"),  
                     "seats": return_seats
                 }
                 seat_resp_ret = lambda_client.invoke(
@@ -992,7 +995,8 @@ def return_seat_page(request):
                 InvocationType="RequestResponse",
                 Payload=json.dumps({
                     "route_id": prefill["route"],
-                    "departure_time": prefill["departure_time"]
+                    "departure_time": prefill["departure_time"],
+                    "departure_date": prefill["return_date"],
                 })
             )
             seat_result = json.loads(seat_resp["Payload"].read())

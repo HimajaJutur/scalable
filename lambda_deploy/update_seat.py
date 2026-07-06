@@ -38,18 +38,21 @@ def lambda_handler(event, context):
               request_id=request_id,
               seats_table="TicketBuddy_Seats")
 
-    # Extract fields from event
+   # Extract fields from event
     route      = event.get("route_id")
     dep_time   = event.get("departure_time")
+    dep_date   = event.get("departure_date")          # NEW
     seats      = event.get("seats", [])
     booking_id = event.get("booking_id") or str(uuid.uuid4())
 
     # Validate required fields
     missing_fields = []
     if not route:
-        missing_fields.append("route_id")
+        missing_fields.append("route_id")   
     if not dep_time:
         missing_fields.append("departure_time")
+    if not dep_date:                                   # NEW
+        missing_fields.append("departure_date")
 
     if missing_fields:
         log_event("ERROR", "MISSING_REQUIRED_FIELDS",
@@ -101,7 +104,7 @@ def lambda_handler(event, context):
 
     # Check each seat for conflicts before booking any
     for seat in seats:
-        composite = f"{dep_time}#{seat}"
+        composite = f"{dep_date}#{dep_time}#{seat}"  
 
         try:
             resp = SEATS.get_item(
@@ -208,6 +211,7 @@ def lambda_handler(event, context):
                 Item={
                     "route_id":             route,
                     "departure_time_seat":  composite,
+                    "departure_date":       dep_date,   # NEW
                     "departure_time":       dep_time,
                     "seat_no":              seat,
                     "status":               "BOOKED",
