@@ -681,7 +681,10 @@ def payment_success(request):
             UpdateExpression="SET pdf_url = :p",
             ExpressionAttributeValues={":p": pdf_key},
         )
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"PDF generation/upload failed for {outbound_id}: {e}")
         pdf_key = ""
 
     try:
