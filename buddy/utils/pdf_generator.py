@@ -9,7 +9,7 @@ from PIL import Image
 from urllib.parse import urlparse
 import os
 
-BUCKET_NAME = os.getenv("TICKETS_BUCKET")
+BUCKET_NAME = os.getenv("TICKETS_BUCKET", "ticketbuddy-tickets-943886678141")
 s3 = boto3.client("s3")
 
 
