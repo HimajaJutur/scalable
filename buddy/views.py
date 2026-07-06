@@ -24,13 +24,24 @@ sns = boto3.client("sns", region_name=AWS_REGION)
 tickets_table = dynamo.Table("TicketBuddy_Tickets")
 seats_table = dynamo.Table("TicketBuddy_Seats")
 
-SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts"
+SNS_TOPIC_ARN = os.getenv(
+    "SNS_TOPIC_ARN",
+    "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts",
+)
 
-TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
-FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator"
+TAX_API_URL = os.getenv(
+    "TAX_API_URL",
+    "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator",
+)
+FARE_API_URL = os.getenv(
+    "FARE_API_URL",
+    "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator",
+)
 
-BUCKET = "ticketbuddy-tickets-943886678141"
+BUCKET = os.getenv("TICKETS_BUCKET", "ticketbuddy-tickets-943886678141")
 KEY    = "analytics/dashboard.json"
+
+GLUE_JOB_NAME = os.getenv("GLUE_JOB_NAME", "RideReserveAnalyticsJob")
 
 GLUE_JOB_NAME = "RideReserveAnalyticsJob"
 

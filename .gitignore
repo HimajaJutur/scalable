@@ -1,8 +1,25 @@
-venv/
+# Python
 __pycache__/
 *.pyc
-.env
-# Elastic Beanstalk Files
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
+*.pyo
+venv/
+.venv/
+env/
+
+# Django
+db.sqlite3
+/staticfiles/
+
+# Build / deploy artifacts
+*.zip
+lambda_deploy/*.zip
+function.zip
+
+# Editors / IDE / Cloud9
+.~c9_*
+.vscode/
+.idea/
+.DS_Store
+
+# Elastic Beanstalk local config
+.elasticbeanstalk/

@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime
 import traceback
+import os
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -12,7 +13,7 @@ tickets_table = dynamo.Table("TicketBuddy_Tickets")
 seats_table = dynamo.Table("TicketBuddy_Seats")
 sns = boto3.client("sns")
 
-TOPIC_ARN = "arn:aws:sns:us-east-1:943886678149:TicketBuddy_Alerts"
+TOPIC_ARN = os.getenv("SNS_TOPIC_ARN")
 
 
 def log_event(level, error_type, message, **kwargs):

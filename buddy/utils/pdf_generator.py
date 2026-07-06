@@ -7,8 +7,9 @@ from botocore.exceptions import ClientError
 import qrcode
 from PIL import Image
 from urllib.parse import urlparse
+import os
 
-BUCKET_NAME = "ticketbuddy-tickets-943886678141"
+BUCKET_NAME = os.getenv("TICKETS_BUCKET")
 s3 = boto3.client("s3")
 
 
