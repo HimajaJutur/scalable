@@ -106,31 +106,40 @@ def fetch_fare(source, destination):
 
 
 # ── Tax helper ────────────────────────────────────────────────────────────────
+# ── Tax helper ────────────────────────────────────────────────────────────────
 def fetch_tax(price, country_code="IE"):
+    """
+    Invoke the TicketBuddy_TaxCalculator Lambda directly (no public URL —
+    AWS Academy sandbox blocks public function URLs). Falls back to zero
+    tax if the Lambda is unavailable.
+    """
     try:
-        payload = json.dumps({
-            "price": round(float(price), 2),
-            "country_code": country_code
-        }).encode()
-
-        req = urllib.request.Request(
-            TAX_API_URL,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST"
+        lambda_client = get_lambda_client()
+        resp = lambda_client.invoke(
+            FunctionName="TicketBuddy_TaxCalculator",
+            InvocationType="RequestResponse",
+            Payload=json.dumps({
+                "price": round(float(price), 2),
+                "country_code": country_code,
+            }),
         )
+        result = json.loads(resp["Payload"].read())
 
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return json.loads(resp.read())
+        body = result.get("body", result)
+        if isinstance(body, str):
+            body = json.loads(body)
+        if "tax_rate" not in body:
+            raise ValueError(f"Unexpected tax response: {result}")
+        return body
 
     except Exception as e:
-        print(f"Tax API error: {e}")
+        print(f"Tax Lambda error: {e}")
         return {
             "original_price": float(price),
             "tax_rate": 0,
             "tax_amount": 0.0,
             "final_price": float(price),
-            "currency": "EUR"
+            "currency": "EUR",
         }
 
 
