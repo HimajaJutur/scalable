@@ -31,7 +31,7 @@ SNS_TOPIC_ARN = os.getenv(
 
 TAX_API_URL = os.getenv(
     "TAX_API_URL",
-    "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator",
+    "https://kj5kgdcdu7c5yisx7ltqixmj2y0lrbvf.lambda-url.us-east-1.on.aws/",
 )
 FARE_API_URL = os.getenv(
     "FARE_API_URL",
@@ -320,16 +320,21 @@ def book_ticket_page(request):
                 Payload=json.dumps({
                     "route_id": prefill["route"],
                     "departure_time": prefill["departure_time"],
-                    "departure_date": prefill["date"],          
+                    "departure_date": prefill["date"],
                 })
             )
-            print("Lambda response:", seat_resp)
             seat_result = json.loads(seat_resp["Payload"].read())
-            seats = seat_result.get("seats", [])
             booked = seat_result.get("booked_seats", [])
-        except Exception:
-            total = int(float(prefill.get("total_seats") or 4))
-            seats = [{"seat_id": str(i), "status": "AVAILABLE"} for i in range(1, total + 1)]
+        except Exception as e:
+            print(f"GetSeatStatus failed: {e}")
+            booked = []
+
+        total = int(float(prefill.get("total_seats") or 4))
+        seats = [
+            {"seat_id": str(i),
+             "status": "BOOKED" if str(i) in booked else "AVAILABLE"}
+            for i in range(1, total + 1)
+        ]
 
     return render(request, "buddy/booking.html", {
         "prefill": prefill,
@@ -1003,11 +1008,17 @@ def return_seat_page(request):
                 })
             )
             seat_result = json.loads(seat_resp["Payload"].read())
-            seats = seat_result.get("seats", [])
             booked = seat_result.get("booked_seats", [])
-        except Exception:
-            total = int(float(request.GET.get("total_seats", 4)))
-            seats = [{"seat_id": str(i), "status": "AVAILABLE"} for i in range(1, total + 1)]
+        except Exception as e:
+            print(f"GetSeatStatus failed: {e}")
+            booked = []
+
+        total = int(float(request.GET.get("total_seats", 4)))
+        seats = [
+            {"seat_id": str(i),
+             "status": "BOOKED" if str(i) in booked else "AVAILABLE"}
+            for i in range(1, total + 1)
+        ]
 
     return render(request, "buddy/return_seat.html", {
         "prefill": prefill,
