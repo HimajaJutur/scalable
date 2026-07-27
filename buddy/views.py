@@ -167,7 +167,7 @@ def register_view(request):
         res = cognito_signup(username, email, password)
 
         if "error" in res:
-            messages.error(request, res["error"])
+            print("APP ERROR (res):", res.get("error")); messages.error(request, "Service temporarily unavailable. Please try again.")
             return redirect("register")
 
         request.session["pending_username"] = username
@@ -183,7 +183,7 @@ def confirm_view(request):
         res = cognito_confirm(username, code)
 
         if "error" in res:
-            messages.error(request, res["error"])
+            print("APP ERROR (res):", res.get("error")); messages.error(request, "Service temporarily unavailable. Please try again.")
             return redirect("confirm")
 
         messages.success(request, "Account confirmed! Login now.")
@@ -199,7 +199,7 @@ def login_view(request):
         res = cognito_login(username, password)
 
         if "error" in res:
-            messages.error(request, res["error"])
+            print("APP ERROR (res):", res.get("error")); messages.error(request, "Service temporarily unavailable. Please try again.")
             return render(request, "buddy/login.html")
 
         tokens = res["AuthenticationResult"]
@@ -222,7 +222,7 @@ def forgot_password_view(request):
         res = cognito_forgot_password(username)
 
         if "error" in res:
-            messages.error(request, res["error"])
+            print("APP ERROR (res):", res.get("error")); messages.error(request, "Service temporarily unavailable. Please try again.")
             return redirect("forgot-password")
 
         request.session["reset_username"] = username
@@ -240,7 +240,7 @@ def reset_password_view(request):
         res = cognito_confirm_new_password(username, code, new_password)
 
         if "error" in res:
-            messages.error(request, res["error"])
+            print("APP ERROR (res):", res.get("error")); messages.error(request, "Service temporarily unavailable. Please try again.")
             return redirect("reset-password")
 
         messages.success(request, "Password reset successful! You can now login.")
@@ -580,7 +580,7 @@ def payment_success(request):
     
         if seat_result.get("status") != "success":
             print("Seat update failed.")
-            messages.error(request, str(seat_result))
+            print("APP ERROR (seat_result):", seat_result); messages.error(request, "Could not reserve seats. Please try again.")
             return redirect("book-ticket")
     
         outbound_seat_booking_id = seat_result.get("booking_id")
@@ -588,7 +588,7 @@ def payment_success(request):
     except Exception as e:
         traceback.print_exc()
         print("Seat update exception:", e)
-        messages.error(request, str(e))
+        import traceback; traceback.print_exc(); messages.error(request, "Something went wrong. Please try again.")
         return redirect("book-ticket")
 
     try:
@@ -658,13 +658,13 @@ def payment_success(request):
     
         if result.get("status") != "success":
             print(result)
-            messages.error(request, str(result))
+            print("APP ERROR (result):", result); messages.error(request, "Booking could not be completed. Please try again.")
             return redirect("book-ticket")
     
     except Exception as e:
         traceback.print_exc()
         print(e)
-        messages.error(request, str(e))
+        import traceback; traceback.print_exc(); messages.error(request, "Something went wrong. Please try again.")
         return redirect("book-ticket")
 
     outbound_item = result["item"]
@@ -737,7 +737,7 @@ def payment_success(request):
                 seat_result_ret = json.loads(seat_resp_ret["Payload"].read())
 
                 if seat_result_ret.get("status") != "success":
-                    messages.error(request, seat_result_ret.get("message"))
+                    print("APP ERROR (seat_result_ret):", seat_result_ret); messages.error(request, "Could not reserve return seats. Please try again.")
                     return redirect("history")
 
                 return_seat_booking_id = seat_result_ret.get("booking_id")
