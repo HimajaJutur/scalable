@@ -5,6 +5,7 @@ from datetime import datetime
 import traceback
 import os
 
+from fault_injector import apply_fault
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -34,6 +35,11 @@ def log_event(level, error_type, message, **kwargs):
 
 def lambda_handler(event, context):
     request_id = context.aws_request_id if context else "unknown"
+    
+    fault = apply_fault("TicketBuddy_UpdateSeat")
+    if fault and fault.get("fault_type") == "api_failure":
+        return {"statusCode": 502, "status": "error",
+                "message": "Upstream API failure"}
 
     # Startup log — confirms Lambda initialised and shows configuration in CloudWatch
     log_event("INFO", "LAMBDA_INITIALISED",

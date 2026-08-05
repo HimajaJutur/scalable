@@ -5,7 +5,7 @@ from boto3.dynamodb.conditions import Attr
 from decimal import Decimal
 from datetime import datetime
 import traceback
-
+from fault_injector import apply_fault
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -41,6 +41,11 @@ def d2f(obj):
 
 def lambda_handler(event, context):
     request_id = context.aws_request_id if context else "unknown"
+    
+    fault = apply_fault("TicketBuddy_GetSchedules")
+    if fault and fault.get("fault_type") == "api_failure":
+        return {"statusCode": 502, "status": "error",
+                "message": "Upstream API failure"}
 
     # Startup log — confirms Lambda initialised and target table in CloudWatch
     log_event("INFO", "LAMBDA_INITIALISED",

@@ -51,7 +51,7 @@ def subscribe_email(topic_arn, email):
                 print(f"[2/3] {email} already subscribed and confirmed.")
             return
     sns.subscribe(TopicArn=topic_arn, Protocol="email",
-                  NotificationEndpoint=email)
+                  Endpoint=email)
     print(f"[2/3] Subscription created for {email} — AWS has sent a "
           f"confirmation email. YOU MUST CLICK THE LINK IN IT.")
 

@@ -32,6 +32,8 @@ def zip_lambda(py_file):
     print(f"Zipping {py_file} → {zip_name}")
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.write(py_path, arcname=py_file)
+        z.write(os.path.join(LAMBDA_DIR, "fault_injector.py"),
+                arcname="fault_injector.py")
     return zip_path
 
 

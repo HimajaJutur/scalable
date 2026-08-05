@@ -91,6 +91,17 @@ def apply_fault(target):
 
     _log_marker(target, fault)
     ftype = fault.get("fault_type")
+
+    if ftype == "api_failure":
+        print(json.dumps({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": "ERROR",
+            "error_type": "API_REQUEST_FAILURE",
+            "message": "INJECTED_FAULT: upstream API failure (HTTP 502) in "
+                       + str(target) + " (trial "
+                       + str(fault.get("trial_id", "?")) + ")",
+            "fault_target": target,
+        }))
     intensity = int(fault.get("intensity", 30))
 
     if ftype == "timeout":

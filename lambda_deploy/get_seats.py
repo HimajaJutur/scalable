@@ -4,7 +4,7 @@ import logging
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 import traceback
-
+from fault_injector import apply_fault
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 

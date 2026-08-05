@@ -1,7 +1,7 @@
 import json
 import boto3
 from boto3.dynamodb.conditions import Key
-
+from fault_injector import apply_fault
 dynamo = boto3.resource("dynamodb")
 SEATS = dynamo.Table("TicketBuddy_Seats")
 

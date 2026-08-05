@@ -1,9 +1,16 @@
 import json
+from fault_injector import apply_fault
 
 VAT_RATES = {"IE": 23, "GB": 20, "DE": 19, "FR": 20}
 
+
 def lambda_handler(event, context):
     try:
+        fault = apply_fault("TicketBuddy_TaxCalculator")
+        if fault and fault.get("fault_type") == "api_failure":
+            return {"statusCode": 502,
+                    "body": json.dumps({"error": "Upstream API failure"})}
+
         body = event.get("body")
         if isinstance(body, str):
             body = json.loads(body)

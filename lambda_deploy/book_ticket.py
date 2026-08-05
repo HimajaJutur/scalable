@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import traceback
+from fault_injector import apply_fault
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -40,6 +41,12 @@ def to_decimal(v, default="0"):
 
 def lambda_handler(event, context):
     request_id = context.aws_request_id if context else str(uuid.uuid4())
+
+    
+    fault = apply_fault("TicketBuddy_BookTicket")
+    if fault and fault.get("fault_type") == "api_failure":
+        return {"statusCode": 502, "status": "error",
+                "message": "Upstream API failure"}
 
     # Parse body
     try:
