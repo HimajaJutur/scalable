@@ -10,9 +10,9 @@ from pathlib import Path
 # Static configuration (replace with your actual values)
 # -------------------------------------------------------------------
 REGION = "us-east-1"  # Example: Ireland region
-EB_APPLICATION_NAME = "RideReserve"
-EB_ENVIRONMENT_NAME = "Ridereserveenvi"
-EB_CNAME_PREFIX = "RideReseve"
+EB_APPLICATION_NAME = "ticketbuddy"
+EB_ENVIRONMENT_NAME = "ticketbuddynew"
+EB_CNAME_PREFIX = "ticketbuddy"
 EB_SERVICE_ROLE = "LabRole"
 EB_INSTANCE_PROFILE = "LabInstanceProfile"
 
