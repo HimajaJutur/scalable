@@ -43,8 +43,7 @@ def deactivate_all():
 
 
 def wait_for_ok(timeout=180):
-    """Wait for the alarm to naturally return to OK, so the next fault
-    produces a genuine OK->ALARM transition that EventBridge fires on."""
+    
     deadline = time.time() + timeout
     while time.time() < deadline:
         r = cw.describe_alarms(AlarmNames=[ALARM])

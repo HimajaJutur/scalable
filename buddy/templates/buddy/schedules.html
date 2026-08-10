@@ -128,10 +128,10 @@
     {% for s in schedules %}
     <div class="ride-card">
         <div class="ride-info">
-            <h3>🚗 {{ s.source }} → {{ s.destination }}</h3>
-            <p>🕒 <b>{{ s.departure_time }}</b> → <b>{{ s.arrival_time }}</b></p>
-            <p>🚙 {{ s.car_type }}</p>
-            <p class="driver">👤 Driver: {{ s.driver_name }}</p>
+            <h3> {{ s.source }} → {{ s.destination }}</h3>
+            <p> <b>{{ s.departure_time }}</b> → <b>{{ s.arrival_time }}</b></p>
+            <p> {{ s.car_type }}</p>
+            <p class="driver"> Driver: {{ s.driver_name }}</p>
             <span class="seats-badge">🪑 {{ s.total_seats }} seats available</span>
         </div>
         <div class="ride-right">

@@ -1,7 +1,4 @@
-"""
-STEP 2 — Triggers the Glue job immediately and waits for it to finish
-Run: python3 step2_run_glue_once.py
-"""
+
 
 import boto3
 import time
@@ -15,12 +12,12 @@ print(f"Starting Glue job: {JOB_NAME}...")
 try:
     response = glue.start_job_run(JobName=JOB_NAME)
     run_id   = response["JobRunId"]
-    print(f"  ✅ Job started — Run ID: {run_id}")
+    print(f"   Job started — Run ID: {run_id}")
 except Exception as e:
-    print(f"  ❌ Failed to start job: {e}")
+    print(f"   Failed to start job: {e}")
     exit(1)
 
-print("  ⏳ Waiting for job to complete (takes ~2-4 mins)...")
+print("   Waiting for job to complete (takes ~2-4 mins)...")
 print("     Checking every 15 seconds...\n")
 
 while True:
@@ -34,13 +31,13 @@ while True:
 
 if state == "SUCCEEDED":
     print("\n" + "="*60)
-    print("✅ STEP 2 COMPLETE — Analytics generated!")
+    print(" STEP 2 COMPLETE — Analytics generated!")
     print("="*60)
     print("  Saved at:")
     print("  s3://ticketbuddy-tickets-943886678148/analytics/dashboard.json")
-    print("\n👉 Now run: python3 step3_update_django.py")
+    print("\n Now run: python3 step3_update_django.py")
     print("="*60)
 else:
     error = status_resp["JobRun"].get("ErrorMessage", "Unknown error")
-    print(f"\n❌ Job {state}: {error}")
+    print(f"\n Job {state}: {error}")
     print("Check: AWS Console -> Glue -> Jobs -> RideReserveAnalyticsJob -> Run history")

@@ -1,8 +1,4 @@
-"""
-Structured request logging middleware — gives the RCA pipeline
-end-to-end visibility at the Django tier, matching the structured
-log_event() format already used by the Lambdas.
-"""
+
 import json
 import time
 import traceback

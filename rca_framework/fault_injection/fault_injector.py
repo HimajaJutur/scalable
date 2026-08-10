@@ -1,29 +1,4 @@
-"""
-fault_injector.py — controlled fault injection for the TicketBuddy RCA study.
 
-Import at the top of every Lambda handler:
-
-    from fault_injector import apply_fault
-
-    def lambda_handler(event, context):
-        fault = apply_fault("TicketBuddy_BookTicket")
-        if fault and fault.get("fault_type") == "api_failure":
-            return {"statusCode": 502, "status": "error",
-                    "message": "Upstream API failure"}
-        ...
-
-Fault types (mapped to the base paper's scenarios):
-    api_failure       ↔ Packet Loss          (caller returns 502)
-    timeout           ↔ Slow Connection      (sleep past the Lambda timeout)
-    cpu_overload      ↔ CPU Overload         (busy loop for `intensity` seconds)
-    exception         ↔ DAL Crash            (raise unhandled RuntimeError)
-    dynamodb_failure  ↔ Fail-over Failure    (query a nonexistent table)
-
-Faults are toggled by items in the DynamoDB table TicketBuddy_FaultConfig
-(key: target). A target of "GLOBAL" applies to every function. Every
-activation is logged as a structured FAULT_ACTIVE record, which serves as
-the ground-truth marker for evaluation.
-"""
 
 import json
 import os
@@ -73,18 +48,7 @@ def _log_marker(target, fault):
 
 
 def apply_fault(target):
-    """
-    Check for and apply an active fault.
-
-    Behaviour by type:
-      timeout / cpu_overload  -> blocks inside this call
-      exception               -> raises RuntimeError
-      dynamodb_failure        -> raises botocore ClientError (real AWS error)
-      api_failure             -> returns the fault dict; the CALLER must
-                                 return an error response
-
-    Returns the fault item (dict) if one is active, else None.
-    """
+    
     fault = get_active_fault(target)
     if not fault:
         return None

@@ -3,7 +3,7 @@
 {% block content %}
 
 <div style="background:white; width:80%; margin:40px auto; padding:30px; border-radius:14px; box-shadow:0 4px 18px rgba(0,0,0,0.12);">
-  <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;">🚗 Plan Your Carpool Ride</h2>
+  <h2 style="text-align:center; color:#1a1a2e; margin-bottom:25px;"> Plan Your Carpool Ride</h2>
 
   <form method="POST">
     {% csrf_token %}
@@ -53,7 +53,7 @@
 
     {% if prefill.departure_time %}
     <div style="margin-top:25px; background:#fff8e1; padding:20px; border-radius:8px; border-left:4px solid #f0c040;">
-      <h3 style="color:#1a1a2e; margin:0 0 12px 0;">🚗 Your Carpool Ride</h3>
+      <h3 style="color:#1a1a2e; margin:0 0 12px 0;"> Your Carpool Ride</h3>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <p style="margin:4px 0;"><b>🚙 Car:</b> {{ prefill.car_type }}</p>
         <p style="margin:4px 0;"><b>👤 Driver:</b> {{ prefill.driver_name }}</p>

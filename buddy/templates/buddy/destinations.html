@@ -67,9 +67,9 @@
     {% for r in schedules %}
         <div class="route-card">
             <div class="ride-info">
-                <h3>🚗 {{ r.source }} → {{ r.destination }}</h3>
-                <p>🕒 <b>{{ r.departure_time }}</b> → <b>{{ r.arrival_time }}</b></p>
-                <p>🚙 {{ r.car_type }}</p>
+                <h3> {{ r.source }} → {{ r.destination }}</h3>
+                <p> <b>{{ r.departure_time }}</b> → <b>{{ r.arrival_time }}</b></p>
+                <p> {{ r.car_type }}</p>
                 <p class="driver">👤 Driver: {{ r.driver_name }}</p>
                 <span class="seats-badge">🪑 {{ r.total_seats }} seats available</span>
             </div>

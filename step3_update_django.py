@@ -1,9 +1,4 @@
-"""
-STEP 3 — Run from your Django project root (where manage.py lives)
-Patches views.py, urls.py and creates dashboard.html
-Field names match your real DynamoDB table exactly
-Run: python3 step3_update_django.py
-"""
+
 
 import os
 
@@ -12,9 +7,9 @@ URLS_PATH     = "buddy/urls.py"
 TEMPLATE_PATH = "buddy/templates/buddy/dashboard.html"
 BUCKET_NAME   = "ticketbuddy-tickets-943886678141"
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # 1. Patch views.py
-# ─────────────────────────────────────────────────────────────────────────────
+
 DASHBOARD_VIEW = '''
 
 def dashboard_view(request):
@@ -47,21 +42,21 @@ with open(VIEWS_PATH, "r") as f:
     views_content = f.read()
 
 if "def dashboard_view" in views_content:
-    print("  ✅ dashboard_view already exists — skipping")
+    print("   dashboard_view already exists — skipping")
 else:
     with open(VIEWS_PATH, "a") as f:
         f.write(DASHBOARD_VIEW)
-    print("  ✅ dashboard_view added to views.py")
+    print("   dashboard_view added to views.py")
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # 2. Patch urls.py
-# ─────────────────────────────────────────────────────────────────────────────
+
 print("Patching urls.py...")
 with open(URLS_PATH, "r") as f:
     urls_content = f.read()
 
 if "dashboard_view" in urls_content:
-    print("  ✅ dashboard url already exists — skipping")
+    print("   dashboard url already exists — skipping")
 else:
     dashboard_import = "from buddy.views import dashboard_view\n"
     dashboard_path   = "    path('dashboard/', dashboard_view, name='dashboard'),\n"
@@ -74,18 +69,9 @@ else:
         )
     with open(URLS_PATH, "w") as f:
         f.write(urls_content)
-    print("  ✅ /dashboard/ path added to urls.py")
+    print("   /dashboard/ path added to urls.py")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Create dashboard.html
-#    Charts use the exact fields produced by the Glue job:
-#      top_routes       -> route, total_bookings
-#      ticket_types     -> ticket_type, count
-#      revenue          -> month, total_revenue
-#      busy_times       -> departure_time, total_bookings
-#      top_destinations -> destination, total_bookings
-#      summary          -> total_bookings, total_revenue, total_tax
-# ─────────────────────────────────────────────────────────────────────────────
+
 DASHBOARD_HTML = """{% extends "buddy/base.html" %}
 {% block title %}Analytics Dashboard - RideReserve{% endblock %}
 {% block content %}
@@ -300,7 +286,7 @@ print("Creating dashboard.html...")
 os.makedirs(os.path.dirname(TEMPLATE_PATH), exist_ok=True)
 with open(TEMPLATE_PATH, "w") as f:
     f.write(DASHBOARD_HTML)
-print(f"  ✅ Created: {TEMPLATE_PATH}")
+print(f"   Created: {TEMPLATE_PATH}")
 
 print("\n" + "="*60)
 print("STEP 3 COMPLETE")

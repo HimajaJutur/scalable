@@ -81,7 +81,7 @@
 
     <!-- Ride Summary -->
     <div style="background:#fff8e1; padding:15px; border-radius:8px; border-left:4px solid #f0c040; margin-bottom:20px;">
-      <p style="margin:4px 0;"><b>🚗 Return:</b> {{ prefill.from }} → {{ prefill.to }} on {{ prefill.return_date }}</p>
+      <p style="margin:4px 0;"><b> Return:</b> {{ prefill.from }} → {{ prefill.to }} on {{ prefill.return_date }}</p>
       <p style="margin:4px 0;"><b>Departure:</b> {{ prefill.departure_time }} &nbsp;|&nbsp; <b>Arrival:</b> {{ prefill.arrival_time }}</p>
       <p style="margin:4px 0;"><b>Fare per Seat:</b> €{{ prefill.fare }}</p>
     </div>
@@ -89,13 +89,13 @@
     <h3 style="text-align:center; color:#1a1a2e; margin-top:18px;">Select Your Seat</h3>
     <p style="text-align:center; color:#888; font-size:14px;">Click an available seat to select it</p>
 
-    <!-- 🚗 Real Car Layout -->
+    <!--  Real Car Layout -->
     <div class="car-shell">
       <div class="car-windshield"></div>
 
       <!-- Row 1: Driver (locked) + Front Passenger -->
       <div class="car-row">
-        <div class="seat-btn seat-driver">🧑 Driver</div>
+        <div class="seat-btn seat-driver"> Driver</div>
         <div style="width:30px;"></div>
         {% for seat in seats %}
           {% if forloop.counter == 1 %}

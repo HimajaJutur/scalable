@@ -1,9 +1,4 @@
-"""
-STEP 1 — Run this FIRST on your EC2 instance
-Uses LabRole + existing S3 bucket
-Field names matched exactly to your DynamoDB table
-Run: python3 step1_setup_aws.py
-"""
+
 
 import boto3
 import json
@@ -19,27 +14,21 @@ s3   = boto3.client("s3",   region_name=AWS_REGION)
 glue = boto3.client("glue", region_name=AWS_REGION)
 sts  = boto3.client("sts",  region_name=AWS_REGION)
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # 1. Get LabRole ARN automatically
-# ─────────────────────────────────────────────────────────────────────────────
+
 print("Fetching LabRole ARN from your session...")
 try:
     identity    = sts.get_caller_identity()
     account_id  = identity["Account"]
     LABROLE_ARN = f"arn:aws:iam::{account_id}:role/LabRole"
-    print(f"  ✅ Account ID  : {account_id}")
-    print(f"  ✅ LabRole ARN : {LABROLE_ARN}")
+    print(f"  Account ID  : {account_id}")
+    print(f"  LabRole ARN : {LABROLE_ARN}")
 except Exception as e:
-    print(f"  ❌ Could not get identity: {e}")
+    print(f"  Could not get identity: {e}")
     exit(1)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. Glue PySpark script — field names match your real DynamoDB table exactly
-#    Fields used:
-#      booking_id, source, destination, departure_date, departure_time,
-#      arrival_time, ticket_type, seats, fare, final_price,
-#      tax_amount, tax_rate, status, username
-# ─────────────────────────────────────────────────────────────────────────────
+
 GLUE_SCRIPT_CONTENT = '''
 import sys
 import json
@@ -152,14 +141,14 @@ try:
         Body=GLUE_SCRIPT_CONTENT.encode("utf-8"),
         ContentType="text/x-python"
     )
-    print(f"  ✅ Uploaded: s3://{BUCKET_NAME}/{GLUE_SCRIPT}")
+    print(f"   Uploaded: s3://{BUCKET_NAME}/{GLUE_SCRIPT}")
 except Exception as e:
-    print(f"  ❌ Upload failed: {e}")
+    print(f"   Upload failed: {e}")
     exit(1)
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # 3. Create Glue Job using LabRole
-# ─────────────────────────────────────────────────────────────────────────────
+
 print(f"\nCreating Glue Job: {JOB_NAME}...")
 try:
     glue.create_job(
@@ -181,7 +170,7 @@ try:
         MaxRetries=1,
         Timeout=30,
     )
-    print(f"  ✅ Glue job created: {JOB_NAME}")
+    print(f"   Glue job created: {JOB_NAME}")
 except glue.exceptions.AlreadyExistsException:
     # Job exists — update the script location in case it changed
     glue.update_job(
@@ -195,9 +184,9 @@ except glue.exceptions.AlreadyExistsException:
             },
         }
     )
-    print(f"  ✅ Glue job already exists — script updated")
+    print(f"   Glue job already exists — script updated")
 except Exception as e:
-    print(f"  ❌ Glue job error: {e}")
+    print(f"   Glue job error: {e}")
     exit(1)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -212,19 +201,19 @@ try:
         Actions=[{"JobName": JOB_NAME}],
         StartOnCreation=True,
     )
-    print(f"  ✅ Trigger created: runs every hour")
+    print(f"   Trigger created: runs every hour")
 except glue.exceptions.AlreadyExistsException:
-    print(f"  ✅ Trigger already exists")
+    print(f"   Trigger already exists")
 except Exception as e:
     print(f"  ⚠️  Trigger: {e}")
 
 print("\n" + "="*60)
-print("✅ STEP 1 COMPLETE")
+print(" STEP 1 COMPLETE")
 print("="*60)
 print(f"  S3 Bucket   : s3://{BUCKET_NAME}/")
 print(f"  Glue Script : s3://{BUCKET_NAME}/{GLUE_SCRIPT}")
 print(f"  LabRole ARN : {LABROLE_ARN}")
 print(f"  Glue Job    : {JOB_NAME}")
 print(f"  Schedule    : Every 1 hour")
-print("\n👉 Now run: python3 step2_run_glue_once.py")
+print("\n Now run: python3 step2_run_glue_once.py")
 print("="*60)

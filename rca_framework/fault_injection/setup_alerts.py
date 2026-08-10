@@ -1,18 +1,4 @@
-"""
-setup_alerts.py — one-shot alert wiring for the RCA pipeline.
 
-Does everything from the checklist in one run:
-  1. Creates the SNS topic TicketBuddy_Alerts (idempotent)
-  2. Subscribes your email (idempotent — AWS ignores duplicates)
-  3. Updates the TicketBuddy_RCA Lambda's environment so it publishes
-     to this topic and calls the Groq LLM
-
-Usage:
-  python3 setup_alerts.py --email you@example.com --groq-key gsk_xxxxx
-
-After running: CLICK THE CONFIRMATION LINK in the email AWS sends you,
-then run the smoke test.
-"""
 
 import argparse
 import sys

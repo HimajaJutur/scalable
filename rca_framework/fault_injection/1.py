@@ -1,10 +1,4 @@
-"""
-find_no_detection.py — list injected faults that produced no diagnosis.
 
-Compares TicketBuddy_GroundTruth (faults injected) against
-TicketBuddy_RCAResults (diagnoses produced), matching by time window,
-and prints which faults have NO matching diagnosis (the NO_DETECTIONs).
-"""
 
 from datetime import datetime
 import boto3

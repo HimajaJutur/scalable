@@ -1,29 +1,4 @@
-"""
-inject_fault.py — experiment control CLI.
 
-Activates/deactivates faults and records ground truth (what fault was
-active, where, and exactly when) in TicketBuddy_GroundTruth. Detection
-latency and accuracy are later computed against these records.
-
-Usage:
-  python inject_fault.py activate  --target TicketBuddy_BookTicket --type exception
-  python inject_fault.py activate  --target TicketBuddy_TaxCalculator --type api_failure
-  python inject_fault.py activate  --target TicketBuddy_BookTicket --type timeout --intensity 30
-  python inject_fault.py deactivate --target TicketBuddy_BookTicket
-  python inject_fault.py deactivate --trial_id abcd1234   # blind-safe: no target shown
-  python inject_fault.py status
-  python inject_fault.py control --minutes 10        # record a no-fault control trial
-
-  # Blind mode: picks a random target/type/intensity, activates it, and
-  # writes full ground truth to DynamoDB — but does NOT print what it did.
-  # Use this to keep yourself blinded while watching the RCA/detection system.
-  python inject_fault.py blind
-  python inject_fault.py blind --targets TicketBuddy_BookTicket TicketBuddy_TaxCalculator
-  python inject_fault.py blind --types exception timeout api_failure
-  python inject_fault.py reveal --trial_id abcd1234   # unblind after you've logged your guess
-
-Fault types: api_failure | timeout | cpu_overload | exception | dynamodb_failure
-"""
 
 import argparse
 import random
@@ -55,11 +30,7 @@ def now():
 
 
 def activate(target, ftype, intensity, quiet=False):
-    """Core activation logic. Returns the trial_id.
-
-    quiet=True suppresses printing which fault/target/intensity was chosen —
-    used by blind mode so the operator doesn't learn ground truth from stdout.
-    """
+    
     trial_id = str(uuid.uuid4())[:8]
     FAULTS.put_item(Item={
         "target": target,
@@ -89,9 +60,7 @@ def activate(target, ftype, intensity, quiet=False):
 
 
 def blind(targets, types, min_intensity, max_intensity):
-    """Randomly choose target/type/intensity and activate without revealing
-    the choice. Ground truth is still fully recorded in DynamoDB so it can
-    be scored later."""
+    
     target = random.choice(targets)
     ftype = random.choice(types)
     intensity = random.randint(min_intensity, max_intensity)
@@ -112,12 +81,7 @@ def reveal(trial_id):
 
 
 def deactivate(target=None, trial_id=None):
-    """Deactivate a fault by --target (as before) or by --trial_id.
-
-    --trial_id is the blind-safe path: it looks up the target from
-    TicketBuddy_FaultConfig internally without ever printing it, so you can
-    end a blind trial without learning what was injected.
-    """
+    
     if trial_id:
         items = FAULTS.scan().get("Items", [])
         match = next((i for i in items if i.get("trial_id") == trial_id and i.get("active")), None)
@@ -181,11 +145,7 @@ def status():
     if not active:
         print("No active faults.")
     for i in active:
-        # Note: this intentionally still reveals fault_type/target for any
-        # active fault, including ones started in blind mode. If you want
-        # `status` to stay blind too, run it from a separate operator who
-        # isn't the one calling `activate`, or don't run `status` during
-        # a blind trial.
+        
         print(f"ACTIVE  {i['fault_type']} on {i['target']} "
               f"(trial {i.get('trial_id')}, since {i.get('activated_at')})")
 

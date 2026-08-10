@@ -8,9 +8,9 @@ from .cognito_config import AWS_REGION, CLIENT_ID, CLIENT_SECRET
 client = boto3.client("cognito-idp", region_name=AWS_REGION)
 
 
-# -----------------------------
+
 # SECRET HASH HELPER
-# -----------------------------
+
 def get_secret_hash(username):
     """Required when Cognito app client has a secret."""
     message = username + CLIENT_ID
@@ -22,9 +22,9 @@ def get_secret_hash(username):
     return base64.b64encode(dig).decode()
 
 
-# -----------------------------
+
 # SIGN UP
-# -----------------------------
+
 def cognito_signup(username, email, password):
     try:
         return client.sign_up(
@@ -40,9 +40,9 @@ def cognito_signup(username, email, password):
         return {"error": e.response["Error"]["Message"]}
 
 
-# -----------------------------
+
 # CONFIRM SIGN UP (OTP)
-# -----------------------------
+
 def cognito_confirm(username, code):
     try:
         return client.confirm_sign_up(
@@ -55,9 +55,9 @@ def cognito_confirm(username, code):
         return {"error": e.response["Error"]["Message"]}
 
 
-# -----------------------------
+
 # LOGIN
-# -----------------------------
+
 def cognito_login(username, password):
     try:
         return client.initiate_auth(
@@ -73,9 +73,9 @@ def cognito_login(username, password):
         return {"error": e.response["Error"]["Message"]}
 
 
-# -----------------------------
+
 # FORGOT PASSWORD (Send OTP)
-# -----------------------------
+
 def cognito_forgot_password(username):
     try:
         return client.forgot_password(
@@ -87,9 +87,9 @@ def cognito_forgot_password(username):
         return {"error": e.response["Error"]["Message"]}
 
 
-# -----------------------------
+
 # CONFIRM NEW PASSWORD (Reset)
-# -----------------------------
+
 def cognito_confirm_new_password(username, code, new_password):
     try:
         return client.confirm_forgot_password(

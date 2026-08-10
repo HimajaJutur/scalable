@@ -1,19 +1,4 @@
-"""
-setup_experiment.py — one-shot creation of all experiment infrastructure.
 
-Creates:
-  1. DynamoDB tables: TicketBuddy_FaultConfig, TicketBuddy_GroundTruth,
-     TicketBuddy_RCAResults
-  2. The RCA Lambda (TicketBuddy_RCA) from ../rca/rca_lambda.py
-  3. CloudWatch metric filters on every monitored Lambda log group
-     (errors, timeouts, exceptions -> metric TicketBuddy/ErrorEvents)
-  4. A CloudWatch alarm (TicketBuddy_ErrorAlarm) on that metric
-  5. An EventBridge rule: alarm -> ALARM state ==> invoke the RCA Lambda
-
-Run AFTER exporting your LLM key:
-  export ANTHROPIC_API_KEY=sk-ant-...
-  python setup_experiment.py
-"""
 
 import json
 import os

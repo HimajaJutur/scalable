@@ -1,20 +1,4 @@
-"""
-inject_fault.py — experiment control CLI.
 
-Activates/deactivates faults and records ground truth (what fault was
-active, where, and exactly when) in TicketBuddy_GroundTruth. Detection
-latency and accuracy are later computed against these records.
-
-Usage:
-  python inject_fault.py activate  --target TicketBuddy_BookTicket --type exception
-  python inject_fault.py activate  --target TicketBuddy_TaxCalculator --type api_failure
-  python inject_fault.py activate  --target TicketBuddy_BookTicket --type timeout --intensity 30
-  python inject_fault.py deactivate --target TicketBuddy_BookTicket
-  python inject_fault.py status
-  python inject_fault.py control --minutes 10        # record a no-fault control trial
-
-Fault types: api_failure | timeout | cpu_overload | exception | dynamodb_failure
-"""
 
 import argparse
 import uuid

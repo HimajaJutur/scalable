@@ -1,4 +1,4 @@
-# Updated script with static parameters (example placeholders filled)
+
 
 import json
 import time
@@ -6,10 +6,10 @@ import boto3
 import os
 from pathlib import Path
 
-# -------------------------------------------------------------------
+
 # Static configuration (replace with your actual values)
-# -------------------------------------------------------------------
-REGION = "us-east-1"  # Example: Ireland region
+
+REGION = "us-east-1"  
 EB_APPLICATION_NAME = "ticketbuddy"
 EB_ENVIRONMENT_NAME = "ticketbuddynew"
 EB_CNAME_PREFIX = "ticketbuddy"
@@ -18,16 +18,16 @@ EB_INSTANCE_PROFILE = "LabInstanceProfile"
 
 # (config.json removed — using static parameters only)
 
-# -------------------------------------------------------------------
+
 # Get Elastic Beanstalk client
-# -------------------------------------------------------------------
+
 def get_eb(region):
     return boto3.client("elasticbeanstalk", region_name=region)
 
 
-# -------------------------------------------------------------------
+
 # Ensure application exists
-# -------------------------------------------------------------------
+
 def ensure_application(eb, app_name):
     print(f"Checking if application '{app_name}' exists...")
     resp = eb.describe_applications(ApplicationNames=[app_name])
@@ -44,9 +44,8 @@ def ensure_application(eb, app_name):
     print("✔ Application created")
 
 
-# -------------------------------------------------------------------
 # Get latest Python platform
-# -------------------------------------------------------------------
+
 def get_latest_platform(eb):
     print("Finding latest Python platform...")
 
@@ -68,9 +67,9 @@ def get_latest_platform(eb):
     return latest["PlatformArn"]
 
 
-# -------------------------------------------------------------------
+
 # Ensure EB environment
-# -------------------------------------------------------------------
+
 def ensure_environment(eb):
     app_name = EB_APPLICATION_NAME
     env_name = EB_ENVIRONMENT_NAME
@@ -113,9 +112,9 @@ def ensure_environment(eb):
     print(f"🚀 Environment creation started: {resp['EnvironmentId']}")
 
 
-# -------------------------------------------------------------------
+
 # MAIN
-# -------------------------------------------------------------------
+
 def main():
     print("🚀 Running EB deployment with static parameters")
 

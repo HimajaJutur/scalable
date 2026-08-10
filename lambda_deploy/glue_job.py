@@ -23,8 +23,7 @@ df = tickets_dyf.toDF()
 df.printSchema()
 
 # ── Flatten DynamoDB numeric structs FIRST ──────────────────────────────────
-# DynamoDB stores numbers as struct<double:double,long:bigint> — must unwrap
-# before any .cast() calls, otherwise Spark throws AnalysisException.
+
 
 def flatten_numeric(df, col_name):
     """
@@ -118,5 +117,5 @@ s3.put_object(
     ContentType="application/json"
 )
 
-print("✅ Analytics saved to S3 successfully.")
+print("Analytics saved to S3 successfully.")
 print("Sample routes:", routes_result)

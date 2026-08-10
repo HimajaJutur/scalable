@@ -1,20 +1,4 @@
-"""
-traffic_generator.py — synthetic workload driver for RCA trials.
 
-Generates a steady stream of realistic activity so that active faults
-actually manifest in CloudWatch logs. Two channels:
-
-  1. HTTP GETs against the Elastic Beanstalk site (public pages).
-  2. Direct boto3 invocations of the backend Lambdas with synthetic
-     payloads (username 'loadtest-user' so records are identifiable
-     and cleanable).
-
-Usage:
-  python traffic_generator.py --base-url http://ridereseve.us-east-1.elasticbeanstalk.com \
-      --duration 300 --interval 2
-
-Requires: pip install requests  (boto3 already present in Cloud9)
-"""
 
 import argparse
 import json
